@@ -1,5 +1,7 @@
 package com.contractwatch.dto;
 
+import java.math.BigDecimal;
+
 public record DashboardSummary(
     long totalContracts,
     long activeContracts,
@@ -8,5 +10,9 @@ public record DashboardSummary(
     long expiredContracts,
     long terminatedContracts,
     long renewedContracts,
-    long unreadNotifications
+    long unreadNotifications,
+    long criticalRiskContracts,
+    BigDecimal totalContractValue,
+    BigDecimal activeContractValue,
+    BigDecimal upcomingRenewalValue
 ) {}

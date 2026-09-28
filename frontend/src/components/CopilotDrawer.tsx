@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, X, Send, Loader, RotateCcw } from 'lucide-react';
+import { Sparkles, X, Send, Loader, RotateCcw, AlertTriangle, ArrowRight } from 'lucide-react';
 import { copilotChat } from '../services/contractService';
 import type { CopilotResponse, Contract, Vendor } from '../types';
 import StatusBadge from './StatusBadge';
-import { formatDate, getDaysLabel, getUrgencyColor } from '../utils/formatters';
+import { formatDate, getDaysLabel, getUrgencyColor, formatCurrency } from '../utils/formatters';
 
 interface Message {
   role: 'user' | 'bot';
@@ -13,12 +13,15 @@ interface Message {
   loading?: boolean;
 }
 
-const SUGGESTED_PROMPTS = [
-  "What's expiring in 30 days?",
-  "Show renewal risks",
-  "Summarize my contracts",
+const MOCK_QUESTIONS = [
+  "Which contracts expire in the next 30 days?",
+  "What should I review today?",
+  "Show high risk contracts",
+  "Give me today's contract priorities",
+  "Show contracts worth more than ₹5 lakh",
   "Which vendor has the most contracts?",
-  "Show urgent contracts",
+  "Summarize my renewal risks",
+  "Show renewal due contracts"
 ];
 
 interface CopilotDrawerProps {
@@ -30,7 +33,7 @@ export default function CopilotDrawer({ open, onClose }: CopilotDrawerProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
-      content: "👋 Hi! I'm **ContractWatch Copilot**. Ask me anything about your contracts — expiring contracts, renewal risks, vendor summaries, and more.",
+      content: "👋 Hi! I'm **ContractWatch Copilot**, your intelligent contract management assistant. I query real-time database contracts, calculate dynamic risk scores, and highlight urgent renewal decisions.\n\nClick any of the **Demo Mock-up Questions** below or type your own query!",
     },
   ]);
   const [input, setInput] = useState('');
@@ -77,166 +80,241 @@ export default function CopilotDrawer({ open, onClose }: CopilotDrawerProps) {
   const clearChat = () => {
     setMessages([{
       role: 'bot',
-      content: "Chat cleared. How can I help you with your contracts?",
+      content: "Chat cleared. Feel free to ask another contract question or select one of the suggested demo prompts below!",
     }]);
   };
 
   if (!open) return null;
 
-  const renderMessageContent = (msg: Message) => {
-    if (msg.loading) {
-      return (
-        <div className="typing-indicator">
-          <div className="typing-dot" />
-          <div className="typing-dot" />
-          <div className="typing-dot" />
-        </div>
-      );
-    }
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
 
-    // Render markdown-like bold text
-    const renderText = (text: string) => {
-      const parts = text.split(/\*\*(.*?)\*\*/g);
-      return parts.map((part, i) =>
-        i % 2 === 1
-          ? <strong key={i}>{part}</strong>
-          : part.split('\n').map((line, j) => (
-              <span key={j}>{line}{j < part.split('\n').length - 1 && <br />}</span>
-            ))
-      );
-    };
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+        <div className="w-screen max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/70">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-100 text-sm">ContractWatch Copilot</h3>
+                <p className="text-[11px] text-slate-400">Intelligent contract & renewal intelligence</p>
+              </div>
+            </div>
 
-    const response = msg.data;
-
-    return (
-      <div className="copilot-bubble">
-        <div>{renderText(msg.content)}</div>
-
-        {/* Insight Card */}
-        {response?.insight && (
-          <div className={`copilot-insight ${response.insight.severity}`}>
-            <div style={{ fontWeight: 600, fontSize: '0.8rem' }}>{response.insight.title}</div>
-            <div style={{ fontSize: '0.75rem', marginTop: '0.25rem', color: 'var(--text-secondary)' }}>
-              {response.insight.description}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={clearChat}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+                title="Clear Chat"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
 
-        {/* Contract Cards */}
-        {response?.data && response.data.length > 0 && (
-          <div className="copilot-result-cards">
-            {(response.data as Contract[]).slice(0, 5).map((item: Contract) => (
-              'contractNumber' in item ? (
-                <div
-                  key={item.id}
-                  className="copilot-contract-card"
-                  onClick={() => { navigate(`/contracts/${item.id}`); onClose(); }}
+          {/* Quick Demo Mock-up Questions Carousel/Chips */}
+          <div className="px-4 py-2.5 bg-slate-950/40 border-b border-slate-800 overflow-x-auto no-scrollbar">
+            <div className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Demo Mock-up Questions:
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {MOCK_QUESTIONS.map((q, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(q)}
+                  disabled={loading}
+                  className="px-2.5 py-1 rounded-full bg-slate-800/80 hover:bg-indigo-600/20 hover:border-indigo-500/40 border border-slate-700/60 text-slate-300 text-xs whitespace-nowrap transition-all duration-150 active:scale-95"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '0.8rem' }}>{item.title}</div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                        {item.vendorName} · Expires {formatDate(item.endDate)}
-                      </div>
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Messages Container */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[90%] rounded-2xl p-4 text-sm leading-relaxed ${
+                    msg.role === 'user'
+                      ? 'bg-indigo-600 text-white rounded-br-none shadow-md shadow-indigo-600/20'
+                      : 'bg-slate-800/80 border border-slate-700/60 text-slate-200 rounded-bl-none shadow-sm'
+                  }`}
+                >
+                  {msg.loading ? (
+                    <div className="flex items-center gap-2 text-slate-400 py-1">
+                      <Loader className="w-4 h-4 animate-spin text-indigo-400" />
+                      <span>Consulting contract database...</span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                      <StatusBadge status={item.status} />
-                      {item.daysUntilExpiry >= 0 && (
-                        <span style={{ fontSize: '0.65rem', color: getUrgencyColor(item.daysUntilExpiry) }}>
-                          {getDaysLabel(item.daysUntilExpiry)}
-                        </span>
+                  ) : (
+                    <div>
+                      {/* Markdown-style simple renderer */}
+                      <div className="whitespace-pre-line text-sm leading-relaxed">
+                        {msg.content}
+                      </div>
+
+                      {/* Insight Card */}
+                      {msg.data?.insight && (
+                        <div className={`mt-3 p-3 rounded-xl border flex items-start gap-2.5 ${
+                          msg.data.insight.severity === 'HIGH_RISK'
+                            ? 'bg-rose-950/30 border-rose-500/30 text-rose-300'
+                            : msg.data.insight.severity === 'WARNING'
+                            ? 'bg-amber-950/30 border-amber-500/30 text-amber-300'
+                            : 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
+                        }`}>
+                          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                          <div>
+                            <div className="font-semibold text-xs">{msg.data.insight.title}</div>
+                            <div className="text-xs opacity-90 mt-0.5">{msg.data.insight.description}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Contract Result Cards */}
+                      {msg.data?.data && msg.data.data.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {msg.data.data.slice(0, 5).map((item, itemIdx) => {
+                            const isContract = 'contractNumber' in item;
+                            if (isContract) {
+                              const c = item as Contract;
+                              return (
+                                <div
+                                  key={itemIdx}
+                                  className="p-3 bg-slate-900/90 border border-slate-700/80 rounded-xl space-y-2 hover:border-slate-600 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                      <div className="font-semibold text-slate-100 text-xs leading-snug">
+                                        {c.title}
+                                      </div>
+                                      <div className="text-[11px] text-slate-400 mt-0.5">
+                                        {c.contractNumber} • {c.vendorName}
+                                      </div>
+                                    </div>
+                                    <StatusBadge status={c.status} />
+                                  </div>
+
+                                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800">
+                                    <span>Expires: {formatDate(c.endDate)}</span>
+                                    <span className={`font-semibold ${getUrgencyColor(c.daysUntilExpiry)}`}>
+                                      {getDaysLabel(c.daysUntilExpiry)}
+                                    </span>
+                                  </div>
+
+                                  {/* Risk & Value info */}
+                                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                                    <span>Value: <strong className="text-slate-300">{formatCurrency(c.contractValue)}</strong></span>
+                                    {c.riskLevel && (
+                                      <span className={`px-1.5 py-0.5 rounded font-semibold ${
+                                        c.riskLevel === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300' :
+                                        c.riskLevel === 'HIGH' ? 'bg-orange-500/20 text-orange-300' :
+                                        c.riskLevel === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
+                                        'bg-emerald-500/20 text-emerald-300'
+                                      }`}>
+                                        {c.riskLevel} Risk ({c.riskScore})
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex items-center gap-1.5 pt-1">
+                                    <button
+                                      onClick={() => {
+                                        navigate(`/contracts/${c.id}`);
+                                        onClose();
+                                      }}
+                                      className="flex-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium transition-colors flex items-center justify-center gap-1"
+                                    >
+                                      View Contract <ArrowRight className="w-3 h-3" />
+                                    </button>
+                                    {c.status !== 'TERMINATED' && (
+                                      <button
+                                        onClick={() => {
+                                          navigate(`/contracts/${c.id}`);
+                                          onClose();
+                                        }}
+                                        className="py-1 px-2.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-[11px] font-medium transition-colors"
+                                      >
+                                        Renew / Action
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            } else {
+                              const v = item as Vendor;
+                              return (
+                                <div
+                                  key={itemIdx}
+                                  onClick={() => {
+                                    navigate(`/vendors?id=${v.id}`);
+                                    onClose();
+                                  }}
+                                  className="p-2.5 bg-slate-900 border border-slate-700 rounded-lg hover:border-slate-600 cursor-pointer text-xs"
+                                >
+                                  <div className="font-medium text-slate-200">{v.name}</div>
+                                  <div className="text-[11px] text-slate-400 mt-0.5">
+                                    {v.activeContracts} active contracts • {v.contactPerson || v.email}
+                                  </div>
+                                </div>
+                              );
+                            }
+                          })}
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
-              ) : (
-                <div
-                  key={(item as Vendor).id}
-                  className="copilot-contract-card"
-                  onClick={() => { navigate('/vendors'); onClose(); }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: '0.8rem' }}>{(item as Vendor).name}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    {(item as Vendor).totalContracts} contracts · {(item as Vendor).activeContracts} active
-                  </div>
-                </div>
-              )
-            ))}
-            {response.data.length > 5 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '0.5rem' }}>
-                +{response.data.length - 5} more — view in Contracts
               </div>
-            )}
+            ))}
+            <div ref={messagesEndRef} />
           </div>
-        )}
-      </div>
-    );
-  };
 
-  return (
-    <div className="copilot-drawer">
-      {/* Header */}
-      <div className="copilot-header">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} color="var(--color-primary)" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>ContractWatch Copilot</h3>
+          {/* Input Box */}
+          <div className="p-4 border-t border-slate-800 bg-slate-950/70">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage(input);
+              }}
+              className="flex items-center gap-2"
+            >
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about contracts, renewals, risks..."
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                disabled={loading}
+              />
+              <button
+                type="submit"
+                disabled={loading || !input.trim()}
+                className="btn-primary p-2.5 rounded-xl disabled:opacity-50"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
           </div>
-          <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            Ask me anything about your contracts
-          </p>
         </div>
-        <div className="flex gap-2">
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={clearChat} title="Clear chat">
-            <RotateCcw size={14} />
-          </button>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-      </div>
-
-      {/* Suggestions */}
-      <div className="copilot-suggestions">
-        {SUGGESTED_PROMPTS.map(p => (
-          <button key={p} className="suggestion-chip" onClick={() => sendMessage(p)}>
-            {p}
-          </button>
-        ))}
-      </div>
-
-      {/* Messages */}
-      <div className="copilot-messages">
-        {messages.map((msg, i) => (
-          <div key={i} className={`copilot-msg copilot-msg-${msg.role}`}>
-            {msg.role === 'user' ? (
-              <div className="copilot-bubble">{msg.content}</div>
-            ) : (
-              renderMessageContent(msg)
-            )}
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="copilot-input-area">
-        <input
-          ref={inputRef}
-          className="form-input"
-          placeholder="Ask about your contracts…"
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && sendMessage(input)}
-          disabled={loading}
-        />
-        <button
-          className="btn btn-primary btn-icon"
-          onClick={() => sendMessage(input)}
-          disabled={loading || !input.trim()}
-        >
-          {loading ? <Loader size={16} className="animate-spin" /> : <Send size={16} />}
-        </button>
       </div>
     </div>
   );

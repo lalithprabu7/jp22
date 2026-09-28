@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, RefreshCw, Building2,
   FolderOpen, Bell, Sparkles, Settings, ChevronLeft,
-  ChevronRight, Shield
+  ChevronRight, Shield, Calendar, BarChart3, Search, UserCheck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -15,6 +15,8 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/contracts', icon: FileText, label: 'Contracts' },
   { to: '/renewals', icon: RefreshCw, label: 'Renewals' },
+  { to: '/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
   { to: '/vendors', icon: Building2, label: 'Vendors' },
   { to: '/documents', icon: FolderOpen, label: 'Documents' },
   { to: '/notifications', icon: Bell, label: 'Notifications', badge: true },
@@ -48,6 +50,26 @@ export default function Sidebar({ collapsed, onToggle, unreadCount }: SidebarPro
 
       {/* Nav */}
       <nav className="sidebar-nav">
+        {/* Quick Search */}
+        <button
+          className="nav-item search-trigger-btn"
+          onClick={() => document.dispatchEvent(new CustomEvent('open-search'))}
+          title={collapsed ? 'Search (Ctrl+K)' : undefined}
+          style={{
+            background: 'rgba(255, 255, 255, 0.04)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <Search size={18} style={{ flexShrink: 0, color: 'var(--color-primary)' }} />
+          {!collapsed && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+              <span className="nav-item-label" style={{ color: 'var(--text-muted)' }}>Quick Search...</span>
+              <kbd style={{ fontSize: '0.7rem', padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>⌘K</kbd>
+            </div>
+          )}
+        </button>
+
         {!collapsed && <span className="nav-section-label">Main</span>}
         {navItems.map(({ to, icon: Icon, label, badge }) => {
           const isActive = to === '/'
@@ -92,6 +114,24 @@ export default function Sidebar({ collapsed, onToggle, unreadCount }: SidebarPro
 
       {/* Footer */}
       <div className="sidebar-footer">
+        {!collapsed && (
+          <div style={{
+            padding: '0.5rem 0.75rem',
+            marginBottom: '0.5rem',
+            borderRadius: '8px',
+            background: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <UserCheck size={14} color="#818cf8" />
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#c7d2fe' }}>Alex Mercer</span>
+              <span style={{ fontSize: '0.65rem', color: '#818cf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role: ADMIN</span>
+            </div>
+          </div>
+        )}
         <NavLink to="/settings" className="nav-item" title={collapsed ? 'Settings' : undefined}>
           <Settings size={18} style={{ flexShrink: 0 }} />
           {!collapsed && <span className="nav-item-label">Settings</span>}

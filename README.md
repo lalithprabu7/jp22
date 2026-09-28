@@ -1,7 +1,8 @@
 <div align="center">
 
 # 🛡️ ContractWatch
-### **Enterprise Contract Renewal Reminder Tracker & AI Copilot**
+### **“Never Miss a Renewal.”**
+#### Enterprise Contract Renewal Management System & AI Copilot
 
 [![Java](https://img.shields.io/badge/Java-21-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.4-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -15,12 +16,12 @@
 
 <br/>
 
-> **"Never miss a critical renewal deadline again."**  
-> ContractWatch is a production-grade full-stack contract management platform designed to automate renewal lifecycles, eliminate vendor lock-in lapses, enforce strict enterprise governance, and deliver contextual decision intelligence powered by the **ContractWatch AI Copilot**.
+> **"Never miss a critical renewal deadline or auto-renew forgotten SaaS subscriptions again."**  
+> ContractWatch is an enterprise-grade contract renewal intelligence platform that tracks vendors, contracts, notice windows, expiry horizons, document repositories, renewal decisions, audit trails, and portfolio risks with an intelligent **ContractWatch AI Copilot**.
 
 <br/>
 
-[Quick Start](#-quick-start) • [Architecture](#-system-architecture) • [Key Features](#-key-features) • [Database Design](#-database-design--er-diagram) • [API Documentation](#-api-documentation) • [AI Copilot](#-ai-copilot-engine) • [Testing](#-testing--quality-assurance)
+[Quick Start](#-quick-start) • [Architecture](#-system-architecture) • [Core Capabilities](#-core-capabilities) • [Risk Score Engine](#-dynamic-contract-risk-engine) • [AI Copilot](#-contractwatch-ai-copilot) • [Calendar & Analytics](#-calendar--analytics) • [API Documentation](#-api-documentation) • [Testing](#-testing--quality-assurance)
 
 ---
 
@@ -28,14 +29,18 @@
 
 ## 📌 Executive Summary
 
-Modern enterprises leak millions annually due to auto-renewing forgotten SaaS subscriptions, missing renegotiation notice windows, or struggling with decentralized contract spreadsheets. 
+Modern organizations manage hundreds of software licenses, infrastructure agreements, real-estate leases, and vendor retainers. Lapsed notice periods trigger automatic unwanted renewals, penalties, or critical service shutdowns.
 
-**ContractWatch** solves this end-to-end:
-- 🕒 **Automated Renewal Windows**: Automatically calculates `renewalReviewDate = endDate - renewalNoticeDays` and triggers alerts before deadlines.
-- ⚡ **Automated Status Lifecycle**: Contracts transition dynamically through `ACTIVE` → `RENEWAL_DUE` → `RENEWED` / `TERMINATED` / `EXPIRED`.
-- 🤖 **ContractWatch AI Copilot**: In-app conversational assistant that extracts contract expirations, evaluates portfolio risks, and highlights urgent renewal decisions.
-- 📊 **Executive Command Center**: Interactive metrics for active commitments, high-urgency timelines, status distributions, and vendor exposure.
-- 🔒 **Enterprise Business Rules**: Prevents renewals of terminated contracts, enforces forward date progression, and prevents duplicate identifiers.
+**ContractWatch** provides proactive contract governance:
+- 🕒 **Automated Review Dates**: Dynamically calculates `renewalReviewDate = endDate - renewalNoticeDays` and triggers stage transitions.
+- ⚡ **Strict Contract Lifecycle**: Enforces valid status progressions across `ACTIVE` → `RENEWAL_DUE` → `RENEWED` / `TERMINATED` / `EXPIRED`.
+- 🛡️ **Dynamic Contract Risk Scoring (0–100)**: Evaluates days remaining, notice period status, missing attachments, and contract value to flag `CRITICAL`, `HIGH`, `MEDIUM`, or `LOW` risk.
+- 🤖 **ContractWatch AI Copilot**: Context-aware natural-language assistant backed by real database data that answers complex contract queries without requiring external API keys.
+- 📅 **Interactive Contract Calendar**: Switch between Month and Agenda list views to track upcoming reviews and expirations.
+- 📈 **Executive Analytics (Recharts)**: Visualizes status distribution, monthly expiry forecasts, vendor commitments, and risk tiers with live CSV report export.
+- 📁 **Centralized Document Hub**: Multi-document repository supporting MSAs, amendments, invoices, SOC2 compliance, and versioning.
+- 📜 **Full Audit Timeline (`<AuditTimeline />`)**: Trace every contract event (`CONTRACT_CREATED`, `DOCUMENT_ADDED`, `RENEWAL_WINDOW_STARTED`, `RENEWED`, `TERMINATED`).
+- 🔎 **Global Command Palette (`Ctrl + K`)**: Instant search across contracts, vendors, and documents.
 
 ---
 
@@ -43,153 +48,180 @@ Modern enterprises leak millions annually due to auto-renewing forgotten SaaS su
 
 ```mermaid
 graph TD
-    subgraph Client ["Frontend Layer (React 18 + Vite + TS)"]
-        UI[Tailwind Glassmorphic UI]
-        CopilotUI[AI Copilot Drawer]
-        Dashboard[Executive Dashboard]
-        ContractsModule[Contract Directory & Modal]
-        RenewalCenter[Renewal Review Queue]
+    subgraph Client ["Frontend Layer (React 18 + TypeScript + Vite)"]
+        UI[Glassmorphic SaaS UI]
+        CopilotUI[ContractWatch Copilot Drawer]
+        CommandBar[Ctrl+K Command Palette]
+        CalendarView[Contract Renewal Calendar]
+        AnalyticsView[Recharts Analytics & CSV Export]
+        TimelineView[Lifecycle Audit Timeline]
     end
 
-    subgraph Gateway ["API & Communication Layer"]
-        ViteProxy[Vite Dev Server Proxy :5173]
+    subgraph Gateway ["Gateway & API Layer"]
+        ViteProxy[Vite Dev Server :5173]
         REST[Spring MVC REST Controllers :8080]
-        OpenAPI[SpringDoc Swagger UI]
+        OpenAPI[SpringDoc OpenAPI 3 / Swagger UI]
     end
 
-    subgraph Backend ["Business Logic Layer (Spring Boot 3.3.4)"]
+    subgraph ServiceLayer ["Spring Boot 3.3.4 Service Layer"]
         ContractSvc[ContractService]
-        VendorSvc[VendorService]
+        RiskSvc[RiskScoreService]
+        AnalyticsSvc[AnalyticsService]
+        ExportSvc[ExportService]
+        SearchSvc[GlobalSearchService]
         CopilotEng[RuleBasedCopilotEngine]
-        Scheduler[Daily ReminderScheduler Cron]
-        ExceptionAdvisor[GlobalExceptionHandler]
+        Scheduler[Daily ReminderScheduler @ 8:00 AM]
     end
 
-    subgraph Persistence ["Data & Storage Layer"]
+    subgraph DataLayer ["Persistence Layer"]
         JPA[Spring Data JPA / Hibernate 6]
         MySQL[(MySQL 8.0 / Persistent H2)]
-        AuditLog[(Renewal Decisions Audit Log)]
-        NotificationStore[(In-App Notification Queue)]
+        DocStore[(Document Repository)]
+        AuditStore[(Audit Event Logs)]
+        NotifStore[(In-App Notification Queue)]
     end
 
     UI -->|HTTP / Axios| ViteProxy
     CopilotUI -->|POST /api/copilot/chat| ViteProxy
+    CommandBar -->|GET /api/search| ViteProxy
     ViteProxy --> REST
     REST --> ContractSvc
-    REST --> VendorSvc
+    REST --> RiskSvc
+    REST --> AnalyticsSvc
+    REST --> ExportSvc
+    REST --> SearchSvc
     REST --> CopilotEng
-    Scheduler -->|Every Midnight| ContractSvc
+    Scheduler -->|Cron 0 0 8 * * *| ContractSvc
     ContractSvc --> JPA
-    VendorSvc --> JPA
+    RiskSvc --> JPA
+    AnalyticsSvc --> JPA
+    SearchSvc --> JPA
     CopilotEng --> JPA
     JPA --> MySQL
-    JPA --> AuditLog
-    JPA --> NotificationStore
+    JPA --> DocStore
+    JPA --> AuditStore
+    JPA --> NotifStore
 ```
 
 ---
 
-## 💎 Key Features
+## 🛡️ Dynamic Contract Risk Engine
 
-### 1. 📋 Contract Lifecycle Engine
-- **Full Lifecycle Auditing**: Manage contracts across states: `ACTIVE`, `RENEWAL_DUE`, `RENEWED`, `TERMINATED`, `EXPIRED`.
-- **Automated Review Calculation**: The system automatically enforces `renewalReviewDate = endDate - renewalNoticeDays`.
-- **Document Hub**: Attach direct links to cloud-hosted contracts, MSAs, and SOWs (Google Drive, OneDrive, S3, DocuSign).
-- **Renewal Audit Trail**: Every renewal or termination decision records the user, timestamps, negotiated amounts, and rationale.
+ContractWatch features a non-hardcoded, multi-factor risk scoring engine (`RiskScoreService.java`):
 
-### 2. ⚡ Renewal Command Center
-- **Urgency Matrix**: Classifies contracts into:
-  - 🔴 **Critical**: Expiration within $\le 15$ days
-  - 🟠 **High**: Expiration within $16 - 30$ days
-  - 🟡 **Medium**: Review notice period currently active
-- **One-Click Renewal**: Extends validity, records negotiated value changes, and captures review notes.
-- **Controlled Termination**: Explicitly terminates services with justification, instantly purging them from future renewal queues.
+$$\text{Risk Score} \in [0, 100]$$
 
-### 3. 🤖 ContractWatch AI Copilot
-The AI Copilot is an embedded assistant with natural language intent recognition:
-- **Instant Expiration Forecast**: *"Which contracts expire in the next 30 days?"*
-- **Portfolio Risk Assessment**: *"Summarize my renewal risks and urgent items"*
-- **Vendor Concentration Analytics**: *"Which vendor has the highest contract volume?"*
-- **Actionable Advice**: Returns formatted response cards, live contract references, and urgency flags.
+| Score Range | Risk Level | Description |
+|---|---|---|
+| **81 – 100** | <span style="color:#f43f5e;font-weight:bold;">CRITICAL</span> | Immediate threat: Expires in $\le 7$ days without renewal, or expired active obligation |
+| **61 – 80** | <span style="color:#f59e0b;font-weight:bold;">HIGH</span> | Urgent attention: Expires in $\le 15$ days, renewal notice overdue, or high-value without docs |
+| **31 – 60** | <span style="color:#3b82f6;font-weight:bold;">MEDIUM</span> | Attention required: Inside review window (16–30 days) or missing documentation |
+| **0 – 30** | <span style="color:#10b981;font-weight:bold;">LOW</span> | Nominal state: Healthy runway (>30 days), full documentation, active vendor contacts |
 
-### 4. ⏰ Automated Cron Scheduler
-- Runs daily background jobs (`@Scheduled(cron = "0 0 0 * * *")`):
-  1. Identifies contracts reaching `renewalReviewDate` and updates status to `RENEWAL_DUE`.
-  2. Dispatches in-app notifications to prevent missed notice deadlines.
-  3. Transitions passed contracts to `EXPIRED` if no action was taken.
+### Real-Time Factors Evaluated:
+1. **Expiry Horizon**: Points scaled by days remaining until contract termination.
+2. **Renewal Review Window**: Checks if current date has passed `renewalReviewDate`.
+3. **Missing Documentation**: Penalizes contracts that have zero attached references or MSAs.
+4. **Vendor Contact Gaps**: Verifies email, phone, and primary representative details.
+5. **Contract Value Exposure**: Elevated weighting for commitments exceeding ₹5,00,000 / $50,000.
+6. **Prior Renewal Velocity**: Checks if earlier renewal attempts were stalled.
 
 ---
 
-## 🗄️ Database Design & ER Diagram
+## 🤖 ContractWatch AI Copilot
 
-The database structure is designed for high relational integrity, normalized vendor data, and full audit traceability:
+Floating bottom-right drawer delivering database-backed conversational insights. Supports interactive demo query cards and natural language understanding:
 
-```mermaid
-erDiagram
-    VENDORS ||--o{ CONTRACTS : "supplies"
-    CONTRACTS ||--o{ RENEWAL_DECISIONS : "audits"
-    CONTRACTS ||--o{ NOTIFICATIONS : "triggers"
+### Pre-loaded Demo Questions:
+- *"Which contracts expire in the next 30 days?"*
+- *"What should I review today?"*
+- *"Show high risk contracts"*
+- *"Give me today's contract priorities"*
+- *"Show contracts worth more than ₹5 lakh"*
+- *"Which vendor has the most contracts?"*
+- *"Summarize my renewal risks"*
+- *"Show renewal due contracts"*
 
-    VENDORS {
-        bigint id PK
-        varchar name UK
-        varchar contact_person
-        varchar email
-        varchar phone
-        varchar company_address
-        timestamp created_at
-        timestamp updated_at
-    }
+Each Copilot response includes interactive action cards enabling immediate navigation to **View Contract**, **Renew**, or **Terminate**.
 
-    CONTRACTS {
-        bigint id PK
-        varchar contract_number UK
-        varchar title
-        bigint vendor_id FK
-        date start_date
-        date end_date
-        int renewal_notice_days
-        date renewal_review_date
-        decimal contract_value
-        varchar status
-        varchar document_url
-        text description
-        timestamp created_at
-        timestamp updated_at
-    }
+---
 
-    RENEWAL_DECISIONS {
-        bigint id PK
-        bigint contract_id FK
-        varchar decision
-        date decision_date
-        varchar decided_by
-        text notes
-        date new_end_date
-        decimal new_value
-        timestamp created_at
-    }
+## 📅 Calendar & Analytics
 
-    NOTIFICATIONS {
-        bigint id PK
-        bigint contract_id FK
-        varchar title
-        text message
-        varchar type
-        boolean is_read
-        timestamp created_at
-    }
+### 1. Contract Calendar (`/calendar`)
+- **Month View**: Grid calendar highlighting renewal review start dates (amber) and expiration dates (red/critical).
+- **Agenda View**: Chronological milestone list with quick-jump action triggers.
+- **Interactive Details**: Clicking any milestone pops up contract terms and days countdown.
+
+### 2. Executive Analytics (`/analytics`)
+- **Status Distribution**: Pie and progress breakdown of Active, Renewal Due, Renewed, Terminated, and Expired contracts.
+- **12-Month Expiry Forecast**: Bar chart showing monthly expiration horizon and capital at risk.
+- **Vendor Exposure Share**: Visual ranking of total financial commitment per vendor.
+- **Risk Tier Distribution**: Portfolio breakdown across Low, Medium, High, and Critical risk tiers.
+- **Live CSV Export**: Instant one-click exports for Contract Register, Renewal Due Report, and High-Risk Analysis.
+
+---
+
+## 📁 Multi-Document Repository (`/documents`)
+
+- Stores multiple document attachments per contract:
+  - `CONTRACT` (Master Service Agreements)
+  - `INVOICE` (Commercial billing receipts)
+  - `AGREEMENT` (Non-disclosure & SLA terms)
+  - `AMENDMENT` (Addenda & scope alterations)
+  - `COMPLIANCE` (SOC2, ISO27001, GDPR certificates)
+  - `OTHER` (Procurement notes)
+- Supports semantic versions (e.g. `v1.0`, `v2.1`), cloud URL references, upload timestamps, and uploader identity.
+
+---
+
+## 📜 Contract Lifecycle Audit Timeline (`<AuditTimeline />`)
+
+Every operational lifecycle event writes a durable, tamper-evident audit log:
+```
+CONTRACT_CREATED ──> DOCUMENT_ADDED ──> RENEWAL_WINDOW_STARTED ──> RENEWAL_REVIEWED ──> CONTRACT_RENEWED / TERMINATED
 ```
 
-### Advanced SQL Assessment Scripts (`database/`)
-- [`schema.sql`](database/schema.sql) — Complete MySQL 8.0 DDL with relational constraints, indices, checks, and foreign keys.
-- [`seed_data.sql`](database/seed_data.sql) — Realistic enterprise mock data (AWS, Microsoft, Google Cloud, Salesforce, CrowdStrike, etc.).
-- [`analytical_queries.sql`](database/analytical_queries.sql) — 8 advanced queries showcasing:
-  - Multi-table JOINs and urgency classification
-  - Total financial exposure by vendor
-  - Window functions (`DENSE_RANK()`, `ROW_NUMBER()`)
-  - Common Table Expressions (CTEs) for latest decision tracking
-  - 12-month forward expiration forecasting
+---
+
+## 🌐 API Documentation
+
+Every REST endpoint is documented with OpenAPI 3.0 annotations and accessible via **[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)**.
+
+| Category | Method | Path | Description |
+|---|---|---|---|
+| **Vendors** | `GET` | `/api/vendors` | List all registered vendors |
+| | `POST` | `/api/vendors` | Register a new vendor |
+| | `GET` | `/api/vendors/{id}` | Get vendor profile with contract statistics |
+| **Contracts** | `GET` | `/api/contracts` | List all contracts with dynamic risk scores |
+| | `POST` | `/api/contracts` | Create contract & enforce notice calculations |
+| | `GET` | `/api/contracts/{id}` | Get contract details, dates, and risk factors |
+| | `PUT` | `/api/contracts/{id}` | Update contract parameters |
+| | `DELETE` | `/api/contracts/{id}` | Delete contract and associated audit trail |
+| | `GET` | `/api/contracts/active` | Filter active contracts |
+| | `GET` | `/api/contracts/renewal-due` | Filter contracts in renewal review window |
+| | `GET` | `/api/contracts/expiring?days=30` | Contracts expiring within $N$ days |
+| **Renewal** | `POST` | `/api/contracts/{id}/renew` | Renew contract, extend date, record decision |
+| | `POST` | `/api/contracts/{id}/terminate` | Terminate contract and remove from alerts |
+| | `GET` | `/api/contracts/{id}/decisions`| Retrieve formal renewal decision history |
+| **Documents** | `GET` | `/api/documents` | Retrieve all documents across contracts |
+| | `GET` | `/api/contracts/{id}/documents` | Retrieve documents for a specific contract |
+| | `POST` | `/api/contracts/{id}/documents`| Attach document reference to contract |
+| | `DELETE` | `/api/documents/{id}` | Remove a document reference |
+| **Audit** | `GET` | `/api/contracts/{id}/audit` | Retrieve complete audit event timeline |
+| **Search** | `GET` | `/api/search?q={query}` | Global search across contracts, vendors, docs |
+| **Analytics** | `GET` | `/api/analytics/status` | Contract status counts and valuations |
+| | `GET` | `/api/analytics/expiry` | Monthly expiry forecast |
+| | `GET` | `/api/analytics/vendors` | Vendor commitment breakdown |
+| | `GET` | `/api/analytics/risk` | Portfolio risk score distribution |
+| | `GET` | `/api/analytics/metrics` | Executive portfolio KPIs |
+| **Export** | `GET` | `/api/export/contracts` | Download CSV Contract Register |
+| | `GET` | `/api/export/renewals` | Download CSV Renewal Report |
+| | `GET` | `/api/export/risks` | Download CSV High-Risk Report |
+| **Copilot** | `POST` | `/api/copilot/chat` | AI query processing & intent detection |
+| **Notifications** | `GET` | `/api/notifications` | List user notification queue |
+| | `PUT` | `/api/notifications/{id}/read` | Mark individual notification read |
+| | `PUT` | `/api/notifications/read-all` | Mark all notifications read |
 
 ---
 
@@ -198,20 +230,19 @@ erDiagram
 ### Prerequisites
 - **Java 21+** ([Eclipse Adoptium Temurin](https://adoptium.net/))
 - **Node.js 18+ & npm**
-- **Maven 3.9+** (or use the built-in batch launcher)
-- *Optional*: MySQL 8.0+ (ContractWatch includes a zero-configuration persistent local database out-of-the-box)
+- **Maven 3.9+** (or use the built-in launcher)
 
 ---
 
-### 🟢 One-Click Launch (Windows)
+### 🟢 One-Click Windows Launch
 
-Simply double-click:
+Run the provided script in the root directory:
 ```cmd
 run-all.bat
 ```
-This automatically launches:
-1. **Backend Server** on [http://localhost:8080](http://localhost:8080)
-2. **Frontend UI** on [http://localhost:5173](http://localhost:5173)
+This automatically boots:
+1. **Spring Boot Backend**: [http://localhost:8080](http://localhost:8080)
+2. **React Frontend**: [http://localhost:5173](http://localhost:5173)
 
 ---
 
@@ -223,10 +254,10 @@ cd backend
 $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-21.0.12.101-hotspot"
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 
-# Run with Maven
-mvn spring-boot:run
+# Run with Maven:
+mvn clean spring-boot:run
 
-# Or run the packaged executable JAR directly:
+# Or run the packaged executable JAR:
 java -jar target/contractwatch-backend-1.0.0.jar
 ```
 
@@ -237,122 +268,39 @@ npm install
 npm run dev
 ```
 
-Visit **[http://localhost:5173](http://localhost:5173)** in your browser!
-
----
-
-## 🌐 Application Endpoints
-
-| Portal | URL | Description |
-|---|---|---|
-| **🎨 Web Application** | `http://localhost:5173` | React Dashboard, Contracts & Copilot UI |
-| **📑 Interactive Swagger UI** | `http://localhost:8080/swagger-ui.html` | Live OpenAPI 3.0 API explorer |
-| **🔍 Raw OpenAPI Specification** | `http://localhost:8080/api-docs` | Full JSON API specification |
-| **🗄️ Database Console** | `http://localhost:8080/h2-console` | In-browser DB (`jdbc:h2:file:./data/contractwatch`, User: `sa`) |
-
----
-
-## 🔌 API Documentation
-
-### Dashboard
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/dashboard/summary` | Portfolio counters, status breakdown, and urgent counts |
-
-### Contracts
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/contracts` | List all contracts (supports vendor & status filters) |
-| `GET` | `/api/contracts/{id}` | Get full contract profile and renewal history |
-| `POST` | `/api/contracts` | Create contract with validation and date calculation |
-| `PUT` | `/api/contracts/{id}` | Update contract details |
-| `DELETE` | `/api/contracts/{id}` | Remove contract |
-| `GET` | `/api/contracts/renewal-due` | Contracts within the notice period |
-| `GET` | `/api/contracts/expiring?days=30` | Contracts expiring within N days |
-| `POST` | `/api/contracts/{id}/renew` | Renew contract with new end date and negotiated value |
-| `POST` | `/api/contracts/{id}/terminate` | Terminate contract with audit reason |
-| `POST` | `/api/contracts/{id}/document-reference`| Attach link to cloud-hosted contract document |
-
-### Vendors
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/api/vendors` | List all vendors with active contract counts |
-| `POST` | `/api/vendors` | Register new vendor |
-| `GET` | `/api/vendors/{id}` | Vendor details and full associated contracts list |
-
-### AI Copilot & Notifications
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/api/copilot/chat` | Natural language queries to the ContractWatch AI Engine |
-| `GET` | `/api/notifications` | List all system notifications |
-| `PUT` | `/api/notifications/{id}/read`| Mark single notification as read |
-| `PUT` | `/api/notifications/read-all` | Mark all notifications as read |
-
----
-
-## 🤖 AI Copilot Engine
-
-The AI Copilot architecture uses the extensible `CopilotEngine` interface with built-in intent classification:
-
-```json
-// Sample Request: POST /api/copilot/chat
-{
-  "message": "Which contracts are expiring in the next 30 days?"
-}
-
-// Sample Response:
-{
-  "message": "Found **4 contract(s)** expiring within the next 30 days. I recommend reviewing these immediately.",
-  "intent": "EXPIRING_CONTRACTS",
-  "data": [
-    {
-      "contractNumber": "CW-2026-002",
-      "title": "Microsoft 365 Enterprise License",
-      "vendorName": "Microsoft Corporation",
-      "daysUntilExpiry": 8,
-      "status": "RENEWAL_DUE"
-    }
-  ],
-  "insight": {
-    "severity": "HIGH_RISK",
-    "title": "🔴 High Expiry Risk",
-    "description": "4 contracts expiring in 30 days require immediate attention."
-  }
-}
-```
+Open **[http://localhost:5173](http://localhost:5173)** in your browser!
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-Comprehensive unit test suite powered by **JUnit 5** and **Mockito**:
-
+### Run Backend Unit Tests:
 ```powershell
 cd backend
-mvn test -Dspring.profiles.active=test
+mvn test
 ```
-
-**Verified Test Cases:**
-- `shouldCreateContract_WithValidData`: Confirms automatic calculation of `renewalReviewDate`.
-- `shouldThrowException_WhenStartDateAfterEndDate`: Guards against invalid chronological ranges.
-- `shouldThrowException_WhenNoticeDaysExceedDuration`: Guards against illogical notice periods.
-- `shouldThrowException_WhenDuplicateContractNumber`: Prevents unique constraint collisions.
-- `shouldRenewContract_WithValidNewEndDate`: Validates renewal logic and forward date enforcement.
-- `shouldThrowException_WhenRenewingTerminatedContract`: Enforces terminal contract immutability.
-- `shouldTerminateContract`: Verifies status transitions and audit log generation.
-- `shouldNotIncludeTerminatedContracts_InRenewalDueList`: Enforces status filtering guards.
+**Test Coverage Includes:**
+- Contract creation & validation rules
+- Invalid date progression rejection (`endDate <= startDate`)
+- Negative and excessive notice period validation
+- Duplicate contract number uniqueness
+- Dynamic `renewalReviewDate` calculation
+- Renewal due status transitions
+- Contract renewal (`newEndDate > endDate`) & decision logging
+- Contract termination exclusion from active reminder queues
+- Dynamic risk score engine calculations
 
 ---
 
-## 👨‍💻 Tech Stack Summary
+## 👥 Default Demo Credentials
 
-- **Backend**: Spring Boot 3.3.4, Java 21, Spring Data JPA, Hibernate 6, Lombok, SpringDoc OpenAPI.
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Recharts, React Hot Toast.
-- **Database**: MySQL 8.0+ / H2 Zero-Config Embedded Engine.
-- **Tooling**: Maven 3.9+, Git, Postman, Visual Studio Code.
+| Role | Name | Email | Password |
+|---|---|---|---|
+| **ADMIN** | Alex Mercer | `admin@contractwatch.io` | `admin123` |
+| **MANAGER** | Priya Sharma | `manager@contractwatch.io` | `manager123` |
+| **VIEWER** | Jordan Lee | `viewer@contractwatch.io` | `viewer123` |
 
 ---
 
 ## 📄 License
-
-This project is licensed under the **MIT License** — feel free to use, modify, and distribute for academic, personal, or commercial evaluation.
+This project is open-source under the [MIT License](LICENSE).

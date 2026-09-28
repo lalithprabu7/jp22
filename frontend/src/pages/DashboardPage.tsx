@@ -2,39 +2,44 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, CheckCircle, RefreshCw, Clock, AlertTriangle,
-  TrendingUp, ArrowRight
+  ArrowRight, Plus, Calendar,
+  Sparkles, Building2, BarChart2
 } from 'lucide-react';
-import { getDashboardSummary, getExpiringContracts, getRenewalDueContracts } from '../services/contractService';
+import { getDashboardSummary, getExpiringContracts } from '../services/contractService';
 import type { DashboardSummary, Contract } from '../types';
 import StatusBadge from '../components/StatusBadge';
-import { formatDate, getDaysLabel, getUrgencyColor } from '../utils/formatters';
+import { formatDate, getDaysLabel, getUrgencyColor, formatCurrency } from '../utils/formatters';
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
+  BarChart, Bar, XAxis, YAxis
 } from 'recharts';
+import ContractFormModal from '../components/ContractFormModal';
 
-const COLORS = ['#10b981', '#f59e0b', '#6366f1', '#6b7280', '#ef4444'];
+const COLORS = ['#10b981', '#f59e0b', '#06b6d4', '#64748b', '#ef4444'];
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [expiring, setExpiring] = useState<Contract[]>([]);
-  const [renewalDue, setRenewalDue] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
+  const [contractModalOpen, setContractModalOpen] = useState(false);
   const navigate = useNavigate();
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  useEffect(() => {
+  const loadDashboard = () => {
+    setLoading(true);
     Promise.all([
       getDashboardSummary(),
       getExpiringContracts(30),
-      getRenewalDueContracts(),
-    ]).then(([s, e, r]) => {
+    ]).then(([s, e]) => {
       setSummary(s);
       setExpiring(e);
-      setRenewalDue(r);
     }).finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
 
   if (loading) return <DashboardSkeleton />;
@@ -48,281 +53,326 @@ export default function DashboardPage() {
   ].filter(d => d.value > 0) : [];
 
   const barData = expiring.slice(0, 6).map(c => ({
-    name: c.title.length > 20 ? c.title.slice(0, 18) + '…' : c.title,
+    name: c.title.length > 18 ? c.title.slice(0, 16) + '…' : c.title,
     days: c.daysUntilExpiry,
   }));
 
+  // Dynamic DB-calculated Copilot Insights
+  const insights: { text: string; highlight: string; icon: string }[] = [];
+  if (summary) {
+    if (summary.renewalDue > 0) {
+      insights.push({
+        icon: '⚡',
+        highlight: `${summary.renewalDue} contracts`,
+        text: 'currently need renewal review decisions before notice windows close.'
+      });
+    }
+    if (summary.upcomingRenewalValue > 0) {
+      insights.push({
+        icon: '💰',
+        highlight: formatCurrency(summary.upcomingRenewalValue),
+        text: 'worth of vendor commitments are expiring within the next 30 days.'
+      });
+    }
+    if (summary.criticalRiskContracts > 0) {
+      insights.push({
+        icon: '🔴',
+        highlight: `${summary.criticalRiskContracts} contracts`,
+        text: 'are flagged as Critical Risk due to immediate expiration deadlines.'
+      });
+    } else {
+      insights.push({
+        icon: '🛡️',
+        highlight: 'Zero Critical Leaks',
+        text: 'All active contracts maintain healthy documentation and compliance.'
+      });
+    }
+  }
+
   return (
-    <div>
-      {/* Header */}
-      <div style={{ marginBottom: '2rem' }}>
-        <h1 className="page-title">{greeting} 👋</h1>
-        <p className="page-subtitle">Here's your contract overview for today.</p>
-      </div>
-
-      {/* Stat Cards */}
-      <div className="stats-grid">
-        <StatCard
-          label="Total Contracts"
-          value={summary?.totalContracts ?? 0}
-          icon={<FileText size={20} color="#6366f1" />}
-          iconBg="rgba(99,102,241,0.1)"
-          accent="var(--color-primary)"
-          desc="All contracts in system"
-          onClick={() => navigate('/contracts')}
-        />
-        <StatCard
-          label="Active Contracts"
-          value={summary?.activeContracts ?? 0}
-          icon={<CheckCircle size={20} color="#10b981" />}
-          iconBg="rgba(16,185,129,0.1)"
-          accent="var(--color-success)"
-          desc="Currently active"
-          onClick={() => navigate('/contracts')}
-        />
-        <StatCard
-          label="Renewal Due"
-          value={summary?.renewalDue ?? 0}
-          icon={<RefreshCw size={20} color="#f59e0b" />}
-          iconBg="rgba(245,158,11,0.1)"
-          accent="var(--color-warning)"
-          desc="Require renewal decision"
-          onClick={() => navigate('/renewals')}
-          urgent
-        />
-        <StatCard
-          label="Expiring in 30 Days"
-          value={summary?.expiringWithin30Days ?? 0}
-          icon={<Clock size={20} color="#ef4444" />}
-          iconBg="rgba(239,68,68,0.1)"
-          accent="var(--color-danger)"
-          desc="Action recommended"
-          onClick={() => navigate('/contracts?filter=expiring')}
-          urgent={Boolean(summary && summary.expiringWithin30Days > 0)}
-        />
-      </div>
-
-      {/* Charts + Timeline Row */}
-      <div className="dashboard-grid">
-        {/* Renewal Timeline */}
-        <div className="card">
-          <div className="flex items-center justify-between" style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>🔔 Renewal Timeline</h3>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/renewals')}>
-              View All <ArrowRight size={14} />
-            </button>
-          </div>
-          {renewalDue.length === 0 ? (
-            <div className="empty-state" style={{ padding: '2rem' }}>
-              <CheckCircle size={32} color="var(--color-success)" />
-              <p>No contracts currently in renewal window.</p>
-            </div>
-          ) : (
-            <div className="timeline">
-              {renewalDue.slice(0, 5).map(c => (
-                <div
-                  key={c.id}
-                  className="timeline-item"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate(`/contracts/${c.id}`)}
-                >
-                  <div
-                    className="timeline-dot"
-                    style={{ background: getUrgencyColor(c.daysUntilExpiry) + '22', color: getUrgencyColor(c.daysUntilExpiry) }}
-                  >
-                    <AlertTriangle size={16} />
-                  </div>
-                  <div className="timeline-content">
-                    <div className="timeline-label">{c.title}</div>
-                    <div className="timeline-time">
-                      {c.vendorName} · Expires {formatDate(c.endDate)}
-                    </div>
-                    <div style={{
-                      fontSize: '0.75rem', fontWeight: 600, marginTop: '0.2rem',
-                      color: getUrgencyColor(c.daysUntilExpiry)
-                    }}>
-                      {getDaysLabel(c.daysUntilExpiry)} remaining
-                    </div>
-                  </div>
-                  <div style={{ alignSelf: 'center' }}>
-                    <StatusBadge status={c.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="space-y-8">
+      {/* Header & Quick Action Buttons */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-100 flex items-center gap-2">
+            {greeting} 👋
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">Here's your contract overview and renewal priorities for today.</p>
         </div>
 
-        {/* Status Distribution Pie */}
-        <div className="card">
-          <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '1.25rem' }}>
-            📊 Contract Status Distribution
-          </h3>
-          {pieData.length === 0 ? (
-            <div className="empty-state" style={{ padding: '2rem' }}>
-              <p>No data available</p>
+        {/* Quick Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => setContractModalOpen(true)}
+            className="btn-primary text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+          >
+            <Plus className="w-4 h-4" /> Add Contract
+          </button>
+          <button
+            onClick={() => navigate('/vendors')}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <Building2 className="w-3.5 h-3.5" /> Add Vendor
+          </button>
+          <button
+            onClick={() => navigate('/renewals')}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" /> Review Renewals
+          </button>
+          <button
+            onClick={() => navigate('/calendar')}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <Calendar className="w-3.5 h-3.5" /> View Calendar
+          </button>
+          <button
+            onClick={() => navigate('/analytics')}
+            className="btn-secondary text-xs flex items-center gap-1.5"
+          >
+            <BarChart2 className="w-3.5 h-3.5" /> Analytics
+          </button>
+        </div>
+      </div>
+
+      {/* Copilot Insights Banner */}
+      {insights.length > 0 && (
+        <div className="bg-gradient-to-r from-indigo-950/60 via-slate-900 to-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 shadow-xl">
+          <div className="flex items-center gap-2 text-indigo-400 font-semibold text-xs uppercase tracking-wider mb-2.5">
+            <Sparkles className="w-4 h-4" /> Copilot Portfolio Insights
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {insights.map((ins, i) => (
+              <div key={i} className="flex items-start gap-2 bg-slate-900/80 border border-indigo-500/20 rounded-xl p-3">
+                <span className="text-base shrink-0 mt-0.5">{ins.icon}</span>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  <strong className="text-slate-100">{ins.highlight}</strong> {ins.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Metric Stat Cards */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="stat-card">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Contracts</span>
+              <FileText className="w-5 h-5 text-indigo-400" />
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={240}>
+            <div className="mt-2 text-2xl font-bold text-slate-100">{summary.totalContracts}</div>
+            <div className="mt-1 text-xs text-slate-400">{formatCurrency(summary.totalContractValue)} total commitment</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider">Active Contracts</span>
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
+            </div>
+            <div className="mt-2 text-2xl font-bold text-emerald-400">{summary.activeContracts}</div>
+            <div className="mt-1 text-xs text-slate-400">{formatCurrency(summary.activeContractValue)} live value</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider">Renewal Due</span>
+              <RefreshCw className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="mt-2 text-2xl font-bold text-amber-400">{summary.renewalDue}</div>
+            <div className="mt-1 text-xs text-amber-400/80">Action required before notice closes</div>
+          </div>
+
+          <div className="stat-card">
+            <div className="flex items-center justify-between text-slate-400">
+              <span className="text-xs font-semibold uppercase tracking-wider">Expiring in 30 Days</span>
+              <Clock className="w-5 h-5 text-rose-400" />
+            </div>
+            <div className="mt-2 text-2xl font-bold text-rose-400">{summary.expiringWithin30Days}</div>
+            <div className="mt-1 text-xs text-slate-400">{formatCurrency(summary.upcomingRenewalValue)} expiring value</div>
+          </div>
+        </div>
+      )}
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Status Distribution */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-100">Status Distribution</h2>
+              <p className="text-xs text-slate-400">Live breakdown of contract lifecycle states</p>
+            </div>
+            <span className="text-xs font-mono text-slate-400">{summary?.totalContracts} total</span>
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
-                  cx="50%" cy="50%"
-                  innerRadius={60} outerRadius={90}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={75}
+                  innerRadius={40}
                   paddingAngle={3}
                   dataKey="value"
+                  label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} (${((percent || 0) * 100).toFixed(0)}%)`}
                 >
                   {pieData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8 }}
-                  labelStyle={{ color: 'var(--text-primary)' }}
-                  itemStyle={{ color: 'var(--text-secondary)' }}
-                />
-                <Legend
-                  iconType="circle"
-                  wrapperStyle={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}
+                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
                 />
               </PieChart>
             </ResponsiveContainer>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* Second Row */}
-      <div className="dashboard-grid" style={{ marginTop: '1.5rem' }}>
-        {/* Expiring Contracts Bar Chart */}
-        <div className="card">
-          <h3 style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '1.25rem' }}>
-            📅 Contracts Expiring Within 30 Days
-          </h3>
-          {barData.length === 0 ? (
-            <div className="empty-state" style={{ padding: '2rem' }}>
-              <TrendingUp size={32} color="var(--color-success)" />
-              <p>No contracts expiring in the next 30 days.</p>
+        {/* Days Until Expiry Bar Chart */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-base font-semibold text-slate-100">Days Remaining (Next 30 Days)</h2>
+              <p className="text-xs text-slate-400">Contracts requiring immediate renewal or renegotiation</p>
             </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} margin={{ top: 5, right: 10, left: -20, bottom: 40 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
-                  angle={-30} textAnchor="end"
-                />
-                <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', borderRadius: 8 }}
-                  labelStyle={{ color: 'var(--text-primary)' }}
-                  formatter={(v) => [`${v} days`, 'Days Remaining']}
-                />
-                <Bar dataKey="days" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Urgent Contracts */}
-        <div className="card">
-          <div className="flex items-center justify-between" style={{ marginBottom: '1.25rem' }}>
-            <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>⚠️ Urgent Attention Required</h3>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate('/contracts')}>
-              View All <ArrowRight size={14} />
+            <button 
+              onClick={() => navigate('/renewals')}
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+            >
+              Review queue <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          {expiring.length === 0 ? (
-            <div className="empty-state" style={{ padding: '2rem' }}>
-              <CheckCircle size={32} color="var(--color-success)" />
-              <p>No urgent contracts. All looks healthy!</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {expiring.slice(0, 5).map(c => {
-                const urgencyColor = getUrgencyColor(c.daysUntilExpiry);
-                return (
-                  <div
-                    key={c.id}
-                    className="card card-sm"
-                    style={{ cursor: 'pointer', borderColor: urgencyColor + '33' }}
-                    onClick={() => navigate(`/contracts/${c.id}`)}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }} className="truncate">{c.title}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{c.vendorName}</div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: urgencyColor }}>
-                          {getDaysLabel(c.daysUntilExpiry)}
-                        </div>
-                        <StatusBadge status={c.status} />
-                      </div>
-                    </div>
-                    <div className="progress-bar" style={{ marginTop: '0.5rem' }}>
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${Math.min(100, Math.max(5, ((30 - c.daysUntilExpiry) / 30) * 100))}%`,
-                          background: urgencyColor,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <div className="h-56">
+            {barData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={barData}>
+                  <XAxis dataKey="name" stroke="#64748b" fontSize={11} />
+                  <YAxis stroke="#64748b" fontSize={11} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
+                  />
+                  <Bar dataKey="days" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Days Remaining" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm">
+                <CheckCircle className="w-8 h-8 text-emerald-500 mb-2" />
+                No contracts expiring within the next 30 days!
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+      {/* Urgent Contracts & Renewal Queue Table */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-100 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              Urgent Contracts Requiring Action
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">Top contracts ordered by expiration deadline urgency</p>
+          </div>
+          <button
+            onClick={() => navigate('/contracts')}
+            className="text-xs text-indigo-400 hover:text-indigo-300 font-medium flex items-center gap-1"
+          >
+            View all ({summary?.totalContracts}) <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
 
-interface StatCardProps {
-  label: string;
-  value: number;
-  icon: React.ReactNode;
-  iconBg: string;
-  accent: string;
-  desc: string;
-  onClick?: () => void;
-  urgent?: boolean;
-}
-
-function StatCard({ label, value, icon, iconBg, accent, desc, onClick, urgent }: StatCardProps) {
-  return (
-    <div
-      className={`stat-card ${urgent && value > 0 ? 'animate-pulse' : ''}`}
-      style={{ ['--accent-color' as string]: accent, cursor: onClick ? 'pointer' : 'default' }}
-      onClick={onClick}
-    >
-      <div className="stat-card-header">
-        <span className="stat-card-label">{label}</span>
-        <div className="stat-card-icon" style={{ ['--icon-bg' as string]: iconBg }}>
-          {icon}
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Contract</th>
+                <th>Vendor</th>
+                <th>End Date</th>
+                <th>Days Remaining</th>
+                <th>Value</th>
+                <th>Risk Level</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expiring.slice(0, 5).map(c => (
+                <tr 
+                  key={c.id} 
+                  className="cursor-pointer hover:bg-slate-800/60"
+                  onClick={() => navigate(`/contracts/${c.id}`)}
+                >
+                  <td>
+                    <div className="font-medium text-slate-200">{c.title}</div>
+                    <div className="text-xs text-slate-400 font-mono">{c.contractNumber}</div>
+                  </td>
+                  <td className="text-slate-300">{c.vendorName}</td>
+                  <td className="text-slate-300">{formatDate(c.endDate)}</td>
+                  <td>
+                    <span className={`font-semibold ${getUrgencyColor(c.daysUntilExpiry)}`}>
+                      {getDaysLabel(c.daysUntilExpiry)}
+                    </span>
+                  </td>
+                  <td className="font-mono text-slate-300">{formatCurrency(c.contractValue)}</td>
+                  <td>
+                    <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                      c.riskLevel === 'CRITICAL' ? 'bg-rose-500/20 text-rose-300' :
+                      c.riskLevel === 'HIGH' ? 'bg-orange-500/20 text-orange-300' :
+                      c.riskLevel === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
+                      'bg-emerald-500/20 text-emerald-300'
+                    }`}>
+                      {c.riskLevel || 'LOW'}
+                    </span>
+                  </td>
+                  <td><StatusBadge status={c.status} /></td>
+                  <td>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/contracts/${c.id}`);
+                      }}
+                      className="btn-secondary text-xs py-1 px-2.5"
+                    >
+                      Review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-      <div className="stat-card-value">{value}</div>
-      <div className="stat-card-desc">{desc}</div>
+
+      {/* Contract Form Modal */}
+      {contractModalOpen && (
+        <ContractFormModal
+          onClose={() => setContractModalOpen(false)}
+          onSuccess={() => {
+            setContractModalOpen(false);
+            loadDashboard();
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function DashboardSkeleton() {
   return (
-    <div>
-      <div className="skeleton" style={{ height: 40, width: 200, marginBottom: '0.5rem' }} />
-      <div className="skeleton" style={{ height: 20, width: 280, marginBottom: '2rem' }} />
-      <div className="stats-grid">
+    <div className="space-y-6 animate-pulse">
+      <div className="h-10 bg-slate-800 rounded w-1/4" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="card" style={{ height: 120 }}>
-            <div className="skeleton" style={{ height: '100%', borderRadius: 8 }} />
-          </div>
+          <div key={i} className="h-28 bg-slate-800 rounded-2xl" />
         ))}
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="h-64 bg-slate-800 rounded-2xl" />
+        <div className="h-64 bg-slate-800 rounded-2xl" />
       </div>
     </div>
   );

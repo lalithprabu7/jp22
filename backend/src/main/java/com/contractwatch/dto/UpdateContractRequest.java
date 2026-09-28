@@ -3,6 +3,7 @@ package com.contractwatch.dto;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 public record UpdateContractRequest(
@@ -19,6 +20,12 @@ public record UpdateContractRequest(
 
     @Positive(message = "Renewal notice period must be greater than 0")
     Integer renewalNoticeDays,
+
+    BigDecimal contractValue,
+
+    String currency,
+
+    String paymentFrequency,
 
     String documentReference,
 

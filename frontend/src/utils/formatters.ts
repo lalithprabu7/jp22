@@ -56,3 +56,15 @@ export function truncate(str: string, maxLen: number): string {
   if (!str) return '';
   return str.length > maxLen ? str.slice(0, maxLen) + '…' : str;
 }
+
+export function formatCurrency(amount?: number | null, currency: string = 'INR'): string {
+  if (amount == null) return '—';
+  if (currency === 'INR') {
+    if (amount >= 10000000) return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)} L`;
+    return `₹${amount.toLocaleString('en-IN')}`;
+  }
+  if (amount >= 1000000) return `$${(amount / 1000000).toFixed(2)}M`;
+  if (amount >= 1000) return `$${(amount / 1000).toFixed(0)}k`;
+  return `$${amount.toLocaleString('en-US')}`;
+}

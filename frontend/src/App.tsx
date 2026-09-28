@@ -5,11 +5,14 @@ import { Sparkles } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
 import CopilotDrawer from './components/CopilotDrawer';
+import CommandPalette from './components/CommandPalette';
 
 import DashboardPage from './pages/DashboardPage';
 import ContractsPage from './pages/ContractsPage';
 import ContractDetailPage from './pages/ContractDetailPage';
 import RenewalsPage from './pages/RenewalsPage';
+import CalendarPage from './pages/CalendarPage';
+import AnalyticsPage from './pages/AnalyticsPage';
 import VendorsPage from './pages/VendorsPage';
 import DocumentsPage from './pages/DocumentsPage';
 import NotificationsPage from './pages/NotificationsPage';
@@ -19,6 +22,7 @@ import { getNotifications } from './services/contractService';
 export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Refresh unread count periodically
@@ -35,9 +39,25 @@ export default function App() {
 
   // Listen for copilot open event from sidebar
   useEffect(() => {
-    const handler = () => setCopilotOpen(true);
-    document.addEventListener('open-copilot', handler);
-    return () => document.removeEventListener('open-copilot', handler);
+    const copilotHandler = () => setCopilotOpen(true);
+    const searchHandler = () => setIsSearchOpen(true);
+
+    const keyHandler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+
+    document.addEventListener('open-copilot', copilotHandler);
+    document.addEventListener('open-search', searchHandler);
+    window.addEventListener('keydown', keyHandler);
+
+    return () => {
+      document.removeEventListener('open-copilot', copilotHandler);
+      document.removeEventListener('open-search', searchHandler);
+      window.removeEventListener('keydown', keyHandler);
+    };
   }, []);
 
   // Collapse sidebar on mobile
@@ -65,6 +85,8 @@ export default function App() {
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/contracts/:id" element={<ContractDetailPage />} />
             <Route path="/renewals" element={<RenewalsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/vendors" element={<VendorsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
@@ -79,6 +101,12 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
+
+        {/* Global Search Command Palette (Ctrl+K) */}
+        <CommandPalette
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+        />
 
         {/* Copilot FAB */}
         {!copilotOpen && (

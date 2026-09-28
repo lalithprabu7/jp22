@@ -62,4 +62,10 @@ public interface ContractRepository extends JpaRepository<Contract, Long> {
     @Query("SELECT c FROM Contract c WHERE c.vendor.id = :vendorId " +
            "AND c.status NOT IN (com.contractwatch.entity.ContractStatus.TERMINATED, com.contractwatch.entity.ContractStatus.EXPIRED)")
     List<Contract> findActiveContractsByVendorId(@Param("vendorId") Long vendorId);
+
+    @Query("SELECT c FROM Contract c WHERE LOWER(c.contractNumber) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(c.title) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(c.description) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR LOWER(c.vendor.name) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Contract> searchContracts(@Param("query") String query);
 }

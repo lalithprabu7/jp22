@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -15,7 +16,8 @@ import java.util.List;
     @Index(name = "idx_contracts_end_date", columnList = "end_date"),
     @Index(name = "idx_contracts_status", columnList = "status"),
     @Index(name = "idx_contracts_renewal_review_date", columnList = "renewal_review_date"),
-    @Index(name = "idx_contracts_vendor_id", columnList = "vendor_id")
+    @Index(name = "idx_contracts_vendor_id", columnList = "vendor_id"),
+    @Index(name = "idx_contracts_contract_number", columnList = "contract_number")
 })
 @Getter
 @Setter
@@ -58,6 +60,18 @@ public class Contract {
     @Builder.Default
     private ContractStatus status = ContractStatus.ACTIVE;
 
+    @Column(name = "contract_value", precision = 14, scale = 2)
+    @Builder.Default
+    private BigDecimal contractValue = BigDecimal.ZERO;
+
+    @Column(length = 10)
+    @Builder.Default
+    private String currency = "INR";
+
+    @Column(name = "payment_frequency", length = 30)
+    @Builder.Default
+    private String paymentFrequency = "ANNUALLY";
+
     @Column(name = "document_reference", length = 500)
     private String documentReference;
 
@@ -79,4 +93,12 @@ public class Contract {
     @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Notification> notifications = new ArrayList<>();
+
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<Document> documents = new ArrayList<>();
+
+    @OneToMany(mappedBy = "contract", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<AuditEvent> auditEvents = new ArrayList<>();
 }

@@ -6,7 +6,8 @@ public record CopilotResponse(
     String message,
     String intent,
     List<?> data,
-    InsightCard insight
+    InsightCard insight,
+    List<String> suggestedQuestions
 ) {
     public record InsightCard(
         String severity,  // HIGH_RISK, WARNING, HEALTHY

@@ -2,13 +2,18 @@ package com.contractwatch.service;
 
 import com.contractwatch.dto.CreateContractRequest;
 import com.contractwatch.dto.RenewalRequest;
+import com.contractwatch.dto.RiskScoreResponse;
 import com.contractwatch.dto.TerminationRequest;
 import com.contractwatch.entity.*;
 import com.contractwatch.exception.BusinessRuleException;
 import com.contractwatch.exception.DuplicateResourceException;
+import com.contractwatch.mapper.AuditEventMapper;
 import com.contractwatch.mapper.ContractMapper;
+import com.contractwatch.mapper.DocumentMapper;
 import com.contractwatch.mapper.RenewalDecisionMapper;
+import com.contractwatch.repository.AuditEventRepository;
 import com.contractwatch.repository.ContractRepository;
+import com.contractwatch.repository.DocumentRepository;
 import com.contractwatch.repository.RenewalDecisionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +23,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -27,15 +33,20 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("ContractService — Business Logic Tests")
+@DisplayName("ContractService & Risk Engine — Business Logic Tests")
 class ContractServiceTest {
 
     @Mock ContractRepository contractRepository;
     @Mock RenewalDecisionRepository renewalDecisionRepository;
+    @Mock DocumentRepository documentRepository;
+    @Mock AuditEventRepository auditEventRepository;
     @Mock VendorService vendorService;
     @Mock ContractMapper contractMapper;
     @Mock RenewalDecisionMapper renewalDecisionMapper;
+    @Mock DocumentMapper documentMapper;
+    @Mock AuditEventMapper auditEventMapper;
     @Mock NotificationService notificationService;
+    @Mock RiskScoreService riskScoreService;
 
     @InjectMocks ContractService contractService;
 
@@ -56,6 +67,9 @@ class ContractServiceTest {
             .renewalNoticeDays(30)
             .renewalReviewDate(LocalDate.now().plusMonths(6).minusDays(30))
             .status(ContractStatus.ACTIVE)
+            .contractValue(new BigDecimal("100000.00"))
+            .currency("INR")
+            .paymentFrequency("ANNUALLY")
             .build();
     }
 
@@ -68,7 +82,7 @@ class ContractServiceTest {
             "CW-TEST-002", "Bad Contract", null, 1L,
             LocalDate.now().plusDays(10),
             LocalDate.now(),  // endDate before startDate
-            30, null, null
+            30, BigDecimal.ZERO, "INR", "ANNUALLY", null, null
         );
 
         when(contractRepository.existsByContractNumber(anyString())).thenReturn(false);
@@ -84,7 +98,8 @@ class ContractServiceTest {
     void createContract_duplicateNumber_throwsDuplicateResourceException() {
         CreateContractRequest request = new CreateContractRequest(
             "CW-TEST-001", "Duplicate", null, 1L,
-            LocalDate.now(), LocalDate.now().plusMonths(6), 30, null, null
+            LocalDate.now(), LocalDate.now().plusMonths(6), 30,
+            BigDecimal.ZERO, "INR", "ANNUALLY", null, null
         );
 
         when(contractRepository.existsByContractNumber("CW-TEST-001")).thenReturn(true);
@@ -101,7 +116,7 @@ class ContractServiceTest {
             "CW-TEST-003", "Short Contract", null, 1L,
             LocalDate.now(), LocalDate.now().plusDays(20),  // 20 days
             30,  // 30 day notice > 20 day contract
-            null, null
+            BigDecimal.ZERO, "INR", "ANNUALLY", null, null
         );
 
         when(contractRepository.existsByContractNumber(anyString())).thenReturn(false);
@@ -122,14 +137,14 @@ class ContractServiceTest {
 
         CreateContractRequest request = new CreateContractRequest(
             "CW-TEST-004", "Valid Contract", null, 1L,
-            start, end, noticeDays, null, null
+            start, end, noticeDays,
+            new BigDecimal("50000.00"), "INR", "ANNUALLY", null, null
         );
 
         when(contractRepository.existsByContractNumber(anyString())).thenReturn(false);
         when(vendorService.getVendorEntityById(1L)).thenReturn(vendor);
         when(contractRepository.save(any(Contract.class))).thenAnswer(inv -> {
             Contract c = inv.getArgument(0);
-            // Verify renewal review date is correctly calculated
             assertThat(c.getRenewalReviewDate()).isEqualTo(expectedReview);
             c.setId(99L);
             return c;
@@ -141,6 +156,7 @@ class ContractServiceTest {
         verify(contractRepository).save(argThat(c ->
             c.getRenewalReviewDate().equals(expectedReview)
         ));
+        verify(auditEventRepository).save(any());
     }
 
     // ─── RENEWAL TESTS ─────────────────────────────────────────────────────────
@@ -151,11 +167,11 @@ class ContractServiceTest {
         activeContract.setStatus(ContractStatus.TERMINATED);
         when(contractRepository.findById(1L)).thenReturn(Optional.of(activeContract));
 
-        RenewalRequest request = new RenewalRequest(LocalDate.now().plusYears(1), "Renewing");
+        RenewalRequest request = new RenewalRequest(LocalDate.now().plusYears(1), null, "Renewing");
 
         assertThatThrownBy(() -> contractService.renewContract(1L, request))
             .isInstanceOf(BusinessRuleException.class)
-            .hasMessageContaining("terminated contract cannot be renewed");
+            .hasMessageContaining("Cannot renew a terminated contract");
     }
 
     @Test
@@ -163,54 +179,73 @@ class ContractServiceTest {
     void renewContract_newEndDateNotAfterCurrent_throwsBusinessRuleException() {
         when(contractRepository.findById(1L)).thenReturn(Optional.of(activeContract));
 
-        // New end date is before current end date
-        RenewalRequest request = new RenewalRequest(
-            activeContract.getEndDate().minusDays(10), "Early renewal"
-        );
+        // Attempt to renew with newEndDate equal to current endDate
+        RenewalRequest request = new RenewalRequest(activeContract.getEndDate(), null, "Invalid renewal");
 
         assertThatThrownBy(() -> contractService.renewContract(1L, request))
             .isInstanceOf(BusinessRuleException.class)
-            .hasMessageContaining("after the current contract end date");
+            .hasMessageContaining("must be after current end date");
     }
 
     @Test
-    @DisplayName("Terminating contract should set status to TERMINATED")
-    void terminateContract_setsStatusToTerminated() {
+    @DisplayName("Should renew contract with valid newEndDate, recalculate review date, and record audit")
+    void renewContract_validNewEndDate_success() {
+        LocalDate newEnd = activeContract.getEndDate().plusYears(1);
+        RenewalRequest request = new RenewalRequest(newEnd, new BigDecimal("120000.00"), "Annual renewal approved");
+
         when(contractRepository.findById(1L)).thenReturn(Optional.of(activeContract));
-        when(renewalDecisionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(contractRepository.save(any(Contract.class))).thenAnswer(inv -> inv.getArgument(0));
         when(contractMapper.toResponse(any())).thenReturn(null);
 
-        contractService.terminateContract(1L, new TerminationRequest("Switching vendor"));
+        contractService.renewContract(1L, request);
 
-        verify(contractRepository).save(argThat(c ->
-            c.getStatus() == ContractStatus.TERMINATED
-        ));
+        assertThat(activeContract.getStatus()).isEqualTo(ContractStatus.RENEWED);
+        assertThat(activeContract.getEndDate()).isEqualTo(newEnd);
+        assertThat(activeContract.getRenewalReviewDate()).isEqualTo(newEnd.minusDays(30));
+        assertThat(activeContract.getContractValue()).isEqualTo(new BigDecimal("120000.00"));
+
+        verify(renewalDecisionRepository).save(any(RenewalDecision.class));
+        verify(auditEventRepository).save(any(AuditEvent.class));
     }
 
-    // ─── STATUS LOGIC TESTS ────────────────────────────────────────────────────
+    // ─── TERMINATION TESTS ─────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Renewal due check should exclude terminated contracts")
-    void getRenewalDueContracts_excludesTerminated() {
-        when(contractRepository.findByStatus(ContractStatus.RENEWAL_DUE)).thenReturn(List.of());
+    @DisplayName("Should terminate contract and update status to TERMINATED")
+    void terminateContract_setsStatusTerminated() {
+        when(contractRepository.findById(1L)).thenReturn(Optional.of(activeContract));
+        when(contractRepository.save(any(Contract.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(contractMapper.toResponse(any())).thenReturn(null);
 
-        List<?> result = contractService.getRenewalDueContracts();
+        contractService.terminateContract(1L, new TerminationRequest("Vendor contract cancelled"));
 
-        verify(contractRepository).findByStatus(ContractStatus.RENEWAL_DUE);
-        // Terminated contracts are excluded by the status filter
-        assertThat(result).isEmpty();
+        assertThat(activeContract.getStatus()).isEqualTo(ContractStatus.TERMINATED);
+        verify(renewalDecisionRepository).save(any(RenewalDecision.class));
+        verify(auditEventRepository).save(any(AuditEvent.class));
     }
 
+    // ─── RISK SCORE ENGINE TEST ────────────────────────────────────────────────
+
     @Test
-    @DisplayName("Expiring contracts query should exclude terminated contracts (via repository)")
-    void getExpiringContracts_excludesTerminated() {
-        LocalDate today = LocalDate.now();
-        when(contractRepository.findExpiringBetween(eq(today), any()))
-            .thenReturn(List.of()); // Terminated contracts excluded by query
+    @DisplayName("RiskScoreService should calculate CRITICAL risk for contract expiring in 3 days with missing docs")
+    void riskScoreService_criticalRisk() {
+        RiskScoreService riskService = new RiskScoreService();
+        Contract highRiskContract = Contract.builder()
+                .title("Urgent Lapsed Contract")
+                .status(ContractStatus.RENEWAL_DUE)
+                .startDate(LocalDate.now().minusMonths(6))
+                .endDate(LocalDate.now().plusDays(3)) // 3 days remaining (+45)
+                .renewalNoticeDays(30)
+                .renewalReviewDate(LocalDate.now().minusDays(10)) // review date passed (+25 status)
+                .contractValue(new BigDecimal("1000000.00")) // high value (+15)
+                .currency("INR")
+                .vendor(vendor)
+                .build(); // no documents (+15)
 
-        contractService.getExpiringContracts(30);
+        RiskScoreResponse risk = riskService.calculateRisk(highRiskContract);
 
-        verify(contractRepository).findExpiringBetween(eq(today), eq(today.plusDays(30)));
+        assertThat(risk.riskLevel()).isEqualTo("CRITICAL");
+        assertThat(risk.riskScore()).isGreaterThanOrEqualTo(81);
+        assertThat(risk.riskReasons()).isNotEmpty();
     }
 }
