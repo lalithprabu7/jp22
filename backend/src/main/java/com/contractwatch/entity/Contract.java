@@ -30,6 +30,9 @@ public class Contract {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Version
+    private Long version;
+
     @Column(name = "contract_number", nullable = false, unique = true, length = 100)
     private String contractNumber;
 
