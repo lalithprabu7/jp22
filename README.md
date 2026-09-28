@@ -355,15 +355,5 @@ mvn test
 
 ---
 
-## 👥 Default Demo Credentials
-
-| Role | Name | Email | Password |
-|---|---|---|---|
-| **ADMIN** | Alex Mercer | `admin@contractwatch.io` | `admin123` |
-| **MANAGER** | Priya Sharma | `manager@contractwatch.io` | `manager123` |
-| **VIEWER** | Jordan Lee | `viewer@contractwatch.io` | `viewer123` |
-
----
-
 ## 📄 License
 This project is open-source under the [MIT License](LICENSE).
