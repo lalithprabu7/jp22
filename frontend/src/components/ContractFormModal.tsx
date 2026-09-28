@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, Loader, Calendar } from 'lucide-react';
-import { createContract, updateContract, getVendors } from '../services/contractService';
+import React, { useState, useEffect } from 'react';
+import { X, Loader, Calendar, Plus, Building2, Check } from 'lucide-react';
+import { createContract, updateContract, getVendors, createVendor } from '../services/contractService';
 import type { Contract, Vendor } from '../types';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,17 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
   const isEdit = !!contract;
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showAddVendor, setShowAddVendor] = useState(false);
+  const [savingVendor, setSavingVendor] = useState(false);
+
+  // New Vendor Form
+  const [newVendorForm, setNewVendorForm] = useState({
+    name: '',
+    contactPerson: '',
+    email: '',
+    phone: '',
+    companyAddress: '',
+  });
 
   const [form, setForm] = useState({
     contractNumber: contract?.contractNumber ?? '',
@@ -23,6 +34,9 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
     startDate: contract?.startDate ?? '',
     endDate: contract?.endDate ?? '',
     renewalNoticeDays: contract?.renewalNoticeDays?.toString() ?? '30',
+    contractValue: contract?.contractValue?.toString() ?? '100000',
+    currency: contract?.currency ?? 'INR',
+    paymentFrequency: contract?.paymentFrequency ?? 'ANNUAL',
     documentReference: contract?.documentReference ?? '',
     documentName: contract?.documentName ?? '',
   });
@@ -30,7 +44,7 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    getVendors().then(setVendors);
+    getVendors().then(setVendors).catch(() => {});
   }, []);
 
   // Compute preview renewal review date
@@ -59,6 +73,28 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
     return Object.keys(errs).length === 0;
   };
 
+  const handleCreateVendor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newVendorForm.name.trim()) {
+      toast.error('Vendor name is required');
+      return;
+    }
+    setSavingVendor(true);
+    try {
+      const created = await createVendor(newVendorForm);
+      setVendors(prev => [created, ...prev]);
+      setForm(prev => ({ ...prev, vendorId: created.id.toString() }));
+      toast.success(`Vendor "${created.name}" created and selected!`);
+      setShowAddVendor(false);
+      setNewVendorForm({ name: '', contactPerson: '', email: '', phone: '', companyAddress: '' });
+      if (errors.vendorId) setErrors(prev => ({ ...prev, vendorId: '' }));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to create vendor');
+    } finally {
+      setSavingVendor(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
@@ -71,6 +107,9 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
         startDate: form.startDate,
         endDate: form.endDate,
         renewalNoticeDays: parseInt(form.renewalNoticeDays),
+        contractValue: form.contractValue ? parseFloat(form.contractValue) : 0,
+        currency: form.currency || 'INR',
+        paymentFrequency: form.paymentFrequency || 'ANNUAL',
         documentReference: form.documentReference || undefined,
         documentName: form.documentName || undefined,
       };
@@ -91,19 +130,24 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
   };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-    setForm(prev => ({ ...prev, [field]: e.target.value }));
+    const val = e.target.value;
+    if (field === 'vendorId' && val === '__ADD_NEW__') {
+      setShowAddVendor(true);
+      return;
+    }
+    setForm(prev => ({ ...prev, [field]: val }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal modal-lg" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="modal-title">{isEdit ? 'Edit Contract' : 'Add New Contract'}</h3>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="modal-header shrink-0">
+          <h3 className="modal-title">{isEdit ? 'Edit Contract' : 'Add New Enterprise Contract'}</h3>
           <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <div className="modal-body">
+        <div className="modal-body overflow-y-auto space-y-6" style={{ flex: 1, paddingRight: '1rem' }}>
           {/* Contract Info */}
           <div>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
@@ -122,27 +166,159 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
               </div>
             </div>
             <div className="form-group" style={{ marginTop: '1rem' }}>
-              <label className="form-label">Description</label>
-              <textarea className="form-textarea" value={form.description} onChange={set('description')} placeholder="Optional contract description…" />
+              <label className="form-label">Description & Scope</label>
+              <textarea className="form-textarea" rows={2} value={form.description} onChange={set('description')} placeholder="Optional contract description, deliverables, SLA terms…" />
             </div>
           </div>
 
           <div className="divider" />
 
-          {/* Vendor */}
+          {/* Vendor Section with Inline Add Option */}
           <div>
-            <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
-              Vendor
-            </h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>
+                Vendor Selection
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowAddVendor(!showAddVendor)}
+                className="btn btn-secondary btn-sm flex items-center gap-1 text-xs"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                <Plus size={13} /> {showAddVendor ? 'Close Vendor Form' : '+ Add New Vendor'}
+              </button>
+            </div>
+
+            {/* Inline Vendor Add Form */}
+            {showAddVendor && (
+              <div className="p-4 rounded-xl bg-slate-900/90 border border-indigo-500/30 mb-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                  <Building2 size={14} /> Register New Vendor
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="form-group">
+                    <label className="form-label text-xs">Vendor Name <span className="required">*</span></label>
+                    <input
+                      type="text"
+                      className="form-input text-xs"
+                      placeholder="e.g., Snowflake Inc, GitHub, Cloudflare"
+                      value={newVendorForm.name}
+                      onChange={e => setNewVendorForm({ ...newVendorForm, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label text-xs">Contact Person</label>
+                    <input
+                      type="text"
+                      className="form-input text-xs"
+                      placeholder="e.g., Sarah Connor"
+                      value={newVendorForm.contactPerson}
+                      onChange={e => setNewVendorForm({ ...newVendorForm, contactPerson: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label text-xs">Email</label>
+                    <input
+                      type="email"
+                      className="form-input text-xs"
+                      placeholder="vendor@company.com"
+                      value={newVendorForm.email}
+                      onChange={e => setNewVendorForm({ ...newVendorForm, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label text-xs">Phone</label>
+                    <input
+                      type="text"
+                      className="form-input text-xs"
+                      placeholder="+1 (555) 019-2834"
+                      value={newVendorForm.phone}
+                      onChange={e => setNewVendorForm({ ...newVendorForm, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label text-xs">Company Address</label>
+                  <input
+                    type="text"
+                    className="form-input text-xs"
+                    placeholder="Headquarters address"
+                    value={newVendorForm.companyAddress}
+                    onChange={e => setNewVendorForm({ ...newVendorForm, companyAddress: e.target.value })}
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm text-xs"
+                    onClick={() => setShowAddVendor(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm text-xs flex items-center gap-1"
+                    onClick={handleCreateVendor}
+                    disabled={savingVendor}
+                  >
+                    {savingVendor ? <Loader size={12} className="animate-spin" /> : <Check size={12} />}
+                    Save & Select Vendor
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="form-group">
               <label className="form-label">Select Vendor <span className="required">*</span></label>
               <select className={`form-select ${errors.vendorId ? 'error' : ''}`} value={form.vendorId} onChange={set('vendorId')}>
                 <option value="">— Choose vendor —</option>
                 {vendors.map(v => (
-                  <option key={v.id} value={v.id}>{v.name}</option>
+                  <option key={v.id} value={v.id}>{v.name} {v.contactPerson ? `(${v.contactPerson})` : ''}</option>
                 ))}
+                <option value="__ADD_NEW__">➕ Add New Vendor...</option>
               </select>
               {errors.vendorId && <span className="form-error">{errors.vendorId}</span>}
+            </div>
+          </div>
+
+          <div className="divider" />
+
+          {/* Commercial & Financial Terms */}
+          <div>
+            <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
+              Financial Terms & Commitment
+            </h4>
+            <div className="form-grid form-grid-3">
+              <div className="form-group">
+                <label className="form-label">Contract Value</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="e.g. 500000"
+                  value={form.contractValue}
+                  onChange={set('contractValue')}
+                  min="0"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Currency</label>
+                <select className="form-select" value={form.currency} onChange={set('currency')}>
+                  <option value="INR">INR (₹)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="GBP">GBP (£)</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Billing Frequency</label>
+                <select className="form-select" value={form.paymentFrequency} onChange={set('paymentFrequency')}>
+                  <option value="ANNUAL">Annual</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="QUARTERLY">Quarterly</option>
+                  <option value="ONE_TIME">One-Time</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -151,7 +327,7 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
           {/* Dates */}
           <div>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
-              Contract Dates
+              Contract Dates & Notice Period
             </h4>
             <div className="form-grid form-grid-3">
               <div className="form-group">
@@ -175,7 +351,7 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
             {reviewDate && (
               <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
                 <Calendar size={14} color="var(--color-primary)" />
-                <span style={{ color: 'var(--text-secondary)' }}>Renewal review date:</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Automated renewal review date:</span>
                 <strong style={{ color: 'var(--color-primary)' }}>{reviewDate}</strong>
               </div>
             )}
@@ -186,24 +362,32 @@ export default function ContractFormModal({ contract, onClose, onSuccess }: Cont
           {/* Document */}
           <div>
             <h4 style={{ fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.08em', marginBottom: '1rem' }}>
-              Document Reference (Optional)
+              Primary Document Reference (Optional)
             </h4>
             <div className="form-grid form-grid-2">
               <div className="form-group">
                 <label className="form-label">Document Name</label>
-                <input className="form-input" value={form.documentName} onChange={set('documentName')} placeholder="e.g., Agreement.pdf" />
+                <input className="form-input" value={form.documentName} onChange={set('documentName')} placeholder="e.g., Master_Agreement.pdf" />
               </div>
               <div className="form-group">
-                <label className="form-label">Reference URL / Path</label>
-                <input className="form-input" value={form.documentReference} onChange={set('documentReference')} placeholder="https://… or /path/to/file" />
+                <label className="form-label">Reference URL / Cloud Path</label>
+                <input className="form-input" value={form.documentReference} onChange={set('documentReference')} placeholder="https://drive.google.com/... or /docs/msa.pdf" />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose} disabled={loading}>Cancel</button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+        {/* Modal Footer with high visibility */}
+        <div className="modal-footer shrink-0 bg-slate-950/80 border-t border-slate-800 p-4 flex items-center justify-end gap-3">
+          <button className="btn btn-secondary" onClick={onClose} disabled={loading}>
+            Cancel
+          </button>
+          <button 
+            className="btn btn-primary shadow-lg shadow-indigo-600/30 flex items-center gap-2" 
+            onClick={handleSubmit} 
+            disabled={loading}
+            style={{ padding: '0.6rem 1.5rem', fontSize: '0.9rem', fontWeight: 600 }}
+          >
             {loading ? <><Loader size={14} className="animate-spin" /> Saving…</> : isEdit ? 'Update Contract' : 'Create Contract'}
           </button>
         </div>

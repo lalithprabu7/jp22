@@ -25,7 +25,7 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Refresh unread count periodically
+  // Refresh unread count periodically & on event
   useEffect(() => {
     const refresh = () => {
       getNotifications()
@@ -33,8 +33,12 @@ export default function App() {
         .catch(() => {});
     };
     refresh();
-    const interval = setInterval(refresh, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(refresh, 15000);
+    document.addEventListener('notifications-updated', refresh);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('notifications-updated', refresh);
+    };
   }, []);
 
   // Listen for copilot open event from sidebar

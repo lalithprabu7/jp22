@@ -86,7 +86,11 @@ export default function ContractsPage() {
           <h1 className="page-title">Contracts</h1>
           <p className="page-subtitle">{contracts.length} contracts in the system</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+        <button 
+          className="btn btn-primary shadow-lg shadow-indigo-600/30 flex items-center gap-2" 
+          onClick={() => setShowForm(true)}
+          style={{ padding: '0.6rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
+        >
           <Plus size={16} /> Add Contract
         </button>
       </div>

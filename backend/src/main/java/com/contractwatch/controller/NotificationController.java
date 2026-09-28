@@ -37,4 +37,11 @@ public class NotificationController {
         notificationService.markAllAsRead();
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/read")
+    @Operation(summary = "Clear/delete all read notifications")
+    public ResponseEntity<Void> clearReadNotifications() {
+        notificationService.clearReadNotifications();
+        return ResponseEntity.noContent().build();
+    }
 }

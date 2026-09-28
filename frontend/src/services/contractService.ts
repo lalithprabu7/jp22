@@ -120,6 +120,9 @@ export const markNotificationRead = (id: number) =>
 export const markAllNotificationsRead = () =>
   api.put('/notifications/read-all');
 
+export const clearReadNotifications = () =>
+  api.delete('/notifications/read');
+
 // ─── COPILOT ──────────────────────────────────────────────────────────────────
 export const copilotChat = (message: string) =>
   api.post<CopilotResponse>('/copilot/chat', { message }).then(r => r.data);

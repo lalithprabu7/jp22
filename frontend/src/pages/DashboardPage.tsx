@@ -101,34 +101,35 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setContractModalOpen(true)}
-            className="btn-primary text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20"
+            className="btn btn-primary shadow-lg shadow-indigo-600/30 flex items-center gap-2"
+            style={{ padding: '0.6rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
           >
             <Plus className="w-4 h-4" /> Add Contract
           </button>
           <button
             onClick={() => navigate('/vendors')}
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary flex items-center gap-1.5 text-xs"
           >
             <Building2 className="w-3.5 h-3.5" /> Add Vendor
           </button>
           <button
             onClick={() => navigate('/renewals')}
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary flex items-center gap-1.5 text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5" /> Review Renewals
           </button>
           <button
             onClick={() => navigate('/calendar')}
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary flex items-center gap-1.5 text-xs"
           >
             <Calendar className="w-3.5 h-3.5" /> View Calendar
           </button>
           <button
             onClick={() => navigate('/analytics')}
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary flex items-center gap-1.5 text-xs"
           >
             <BarChart2 className="w-3.5 h-3.5" /> Analytics
           </button>
