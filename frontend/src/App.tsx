@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Sparkles } from 'lucide-react';
+
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 
 import Sidebar from './components/Sidebar';
 import TopNavbar from './components/TopNavbar';
@@ -20,13 +24,24 @@ import NotificationsPage from './pages/NotificationsPage';
 
 import { getNotifications } from './services/contractService';
 
-export default function App() {
+import SettingsPage from './pages/SettingsPage';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return <>{children}</>;
+}
+
+function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Refresh unread count periodically & on event
   useEffect(() => {
     const refresh = () => {
       getNotifications()
@@ -42,7 +57,6 @@ export default function App() {
     };
   }, []);
 
-  // Listen for copilot open event from sidebar
   useEffect(() => {
     const copilotHandler = () => setCopilotOpen(true);
     const searchHandler = () => setIsSearchOpen(true);
@@ -65,7 +79,6 @@ export default function App() {
     };
   }, []);
 
-  // Collapse sidebar on mobile
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) setSidebarCollapsed(true);
@@ -76,87 +89,96 @@ export default function App() {
   }, []);
 
   return (
-    <BrowserRouter>
-      <div className="app-layout">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(p => !p)}
+    <div className="app-layout">
+      <Sidebar
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(p => !p)}
+        unreadCount={unreadCount}
+      />
+
+      <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <TopNavbar
+          onToggleSidebar={() => setSidebarCollapsed(p => !p)}
           unreadCount={unreadCount}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenCopilot={() => setCopilotOpen(true)}
         />
 
-        <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <TopNavbar
-            onToggleSidebar={() => setSidebarCollapsed(p => !p)}
-            unreadCount={unreadCount}
-            onOpenSearch={() => setIsSearchOpen(true)}
-            onOpenCopilot={() => setCopilotOpen(true)}
+        <div className="page-container">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/contracts" element={<ContractsPage />} />
+            <Route path="/contracts/:id" element={<ContractDetailPage />} />
+            <Route path="/renewals" element={<RenewalsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/vendors" element={<VendorsPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </main>
+
+      <CommandPalette
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+
+      {!copilotOpen && (
+        <div className="copilot-fab">
+          <button
+            className="copilot-fab-btn"
+            onClick={() => setCopilotOpen(true)}
+            id="copilot-fab-btn"
+          >
+            <Sparkles size={18} />
+            Copilot
+          </button>
+        </div>
+      )}
+
+      <CopilotDrawer
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
           />
-
-          <div className="page-container">
-            <Routes>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/contracts" element={<ContractsPage />} />
-              <Route path="/contracts/:id" element={<ContractDetailPage />} />
-              <Route path="/renewals" element={<RenewalsPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/vendors" element={<VendorsPage />} />
-              <Route path="/documents" element={<DocumentsPage />} />
-              <Route path="/notifications" element={<NotificationsPage />} />
-              <Route path="/settings" element={
-                <div className="card p-8 text-center max-w-lg mx-auto my-12">
-                  <h1 className="text-xl font-bold text-slate-100 mb-2">⚙️ Enterprise Platform Settings</h1>
-                  <p className="text-sm text-slate-400">Manage tenant profiles, notification dispatchers, API keys, and RBAC policies.</p>
-                </div>
-              } />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </div>
-        </main>
-
-        {/* Global Search Command Palette (Ctrl+K) */}
-        <CommandPalette
-          isOpen={isSearchOpen}
-          onClose={() => setIsSearchOpen(false)}
-        />
-
-        {/* Copilot FAB */}
-        {!copilotOpen && (
-          <div className="copilot-fab">
-            <button
-              className="copilot-fab-btn"
-              onClick={() => setCopilotOpen(true)}
-              id="copilot-fab-btn"
-            >
-              <Sparkles size={18} />
-              Copilot
-            </button>
-          </div>
-        )}
-
-        {/* Copilot Drawer */}
-        <CopilotDrawer
-          open={copilotOpen}
-          onClose={() => setCopilotOpen(false)}
-        />
-
-        {/* Toast Notifications */}
+        </Routes>
         <Toaster
           position="bottom-right"
           toastOptions={{
             duration: 3500,
             style: {
-              background: 'var(--color-surface-2)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 10,
+              background: '#0c101b',
+              color: '#f8fafc',
+              border: '1px solid rgba(255,255,255,0.05)',
+              borderRadius: 16,
               fontSize: '0.875rem',
             },
             success: { iconTheme: { primary: '#10b981', secondary: 'white' } },
             error: { iconTheme: { primary: '#ef4444', secondary: 'white' } },
           }}
         />
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }

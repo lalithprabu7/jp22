@@ -357,15 +357,33 @@ public class RuleBasedCopilotEngine implements CopilotEngine {
     }
 
     private CopilotResponse handleUnknown(String original) {
+        String[] words = original.toLowerCase().split("\\W+");
+        Set<ContractResponse> matchedContracts = new HashSet<>();
+        
+        List<Contract> allContracts = contractRepository.findAll();
+        
+        for (String word : words) {
+            if (word.length() <= 2 || Arrays.asList("show", "me", "the", "what", "is", "are", "which", "how", "find").contains(word)) continue;
+            
+            for (Contract c : allContracts) {
+                if (c.getTitle().toLowerCase().contains(word) || 
+                    (c.getVendor() != null && c.getVendor().getName() != null && c.getVendor().getName().toLowerCase().contains(word)) ||
+                    (c.getContractNumber() != null && c.getContractNumber().toLowerCase().contains(word))) {
+                    matchedContracts.add(contractMapper.toResponse(c));
+                }
+            }
+        }
+        
+        if (!matchedContracts.isEmpty()) {
+            List<ContractResponse> results = new ArrayList<>(matchedContracts);
+            return new CopilotResponse(
+                "I analyzed your database based on your query and found **" + results.size() + " relevant contract(s)** matching your keywords.",
+                "DYNAMIC_SEARCH", results, null, DEFAULT_SUGGESTIONS
+            );
+        }
+
         return new CopilotResponse(
-            "I'm not sure I understood that. Click any of the suggested prompts below, or try asking:\n\n" +
-            "• \"Which contracts are expiring in the next 30 days?\"\n" +
-            "• \"What should I review today?\"\n" +
-            "• \"Show high risk contracts\"\n" +
-            "• \"Give me today's contract priorities\"\n" +
-            "• \"Show contracts worth more than ₹5 lakh\"\n" +
-            "• \"Which vendor has the most contracts?\"\n" +
-            "• \"Summarize my renewal risks\"",
+            "I'm deeply integrated with your database, but I couldn't find any specific contracts matching your exact query. Try asking about a specific vendor, contract number, or use one of my suggested analytical prompts below:",
             "UNKNOWN", List.of(), null, DEFAULT_SUGGESTIONS
         );
     }

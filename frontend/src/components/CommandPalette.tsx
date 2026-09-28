@@ -47,6 +47,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     return () => clearTimeout(timer);
   }, [query]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSelectContract = (id: number) => {
@@ -69,7 +79,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-slate-950/70 backdrop-blur-md">
+    <div 
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-slate-950/70 backdrop-blur-md"
+      onClick={onClose}
+    >
       <div 
         className="w-full max-w-2xl bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
@@ -88,14 +101,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           {query && (
             <button 
               onClick={() => setQuery('')}
-              className="p-1 text-slate-400 hover:text-slate-200"
+              className="p-1 mr-2 text-slate-400 hover:text-slate-200"
+              title="Clear search"
             >
               <X className="w-4 h-4" />
             </button>
           )}
-          <kbd className="hidden sm:inline-block ml-3 px-2 py-0.5 text-xs font-mono text-slate-400 bg-slate-800 rounded border border-slate-700">
+          <kbd className="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-mono text-slate-400 bg-slate-800 rounded border border-slate-700">
             ESC
           </kbd>
+          <button 
+            onClick={onClose}
+            className="ml-3 p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            title="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Results Area */}

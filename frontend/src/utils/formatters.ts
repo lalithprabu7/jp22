@@ -31,9 +31,9 @@ export function formatDateTime(dateStr?: string | null): string {
 }
 
 export function getDaysLabel(days: number): string {
-  if (days < 0) return `${Math.abs(days)} days ago`;
-  if (days === 0) return 'Today';
-  return `${days} day${days !== 1 ? 's' : ''}`;
+  if (days < 0) return `Expired ${Math.abs(days)} days ago`;
+  if (days === 0) return 'Expires today';
+  return `${days} days remaining`;
 }
 
 export function getUrgencyColor(days: number): string {

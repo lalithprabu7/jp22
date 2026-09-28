@@ -184,6 +184,69 @@ CONTRACT_CREATED ──> DOCUMENT_ADDED ──> RENEWAL_WINDOW_STARTED ──> R
 
 ---
 
+## 🗄️ Database & Entities Overview
+
+ContractWatch uses a normalized relational database with the following core entities:
+- **`Vendor`**: Stores company details, contact person, and aggregated risk.
+- **`Contract`**: The central entity (linked to Vendor). Tracks `startDate`, `endDate`, `renewalNoticeDays`, and computed `renewalReviewDate`.
+- **`Document`**: Polymorphic attachment entity for MSAs, Invoices, and Compliance docs.
+- **`RenewalDecision`**: Audit record of when a contract was extended and by whom.
+- **`AuditEvent`**: Append-only log for compliance tracing.
+- **`Notification`**: System alerts for approaching deadlines.
+- **`User`**: Security principals (Admin, Manager, Viewer).
+
+---
+
+## 🏗️ Project Structure
+
+```text
+contractwatch/
+├── backend/                  # Spring Boot 3 + Java 21 REST API
+│   ├── src/main/java/...     # Controllers, Services, Repositories, Entities
+│   ├── src/main/resources/   # application.properties, schema.sql
+│   └── pom.xml               # Maven configuration
+├── frontend/                 # React 18 + Vite + TypeScript Client
+│   ├── src/components/       # UI Components (Copilot, Command Palette)
+│   ├── src/pages/            # Dashboard, Contracts, Vendors Views
+│   ├── src/services/         # Axios API clients
+│   └── tailwind.config.js    # Tailwind styling system
+├── database/                 # SQL schemas and seed data
+└── README.md                 # Project Documentation
+```
+
+---
+
+## ⚙️ Demo Workflow
+
+To experience the full power of ContractWatch:
+1. **Login**: Use `admin@contractwatch.io` / `admin123`.
+2. **Dashboard**: Observe the executive summary widgets and the 12-Month Expiry Forecast.
+3. **Add Vendor**: Create a new vendor in the Vendors tab.
+4. **Create Contract**: Link a contract to the vendor. Set an end date 40 days from now, and a 30-day notice period.
+5. **View Risk**: Notice the risk engine automatically categorizes it based on the review window.
+6. **Copilot**: Open the bottom-right AI Copilot and type: *"Which contracts expire in the next 30 days?"*
+7. **Renew**: Go to the contract details, attach a mock PDF document, and hit **Renew** to extend the end date.
+8. **Audit Trail**: Check the contract's audit timeline to see the cryptographic-style log of your actions.
+
+---
+
+## 🚧 Limitations
+
+- **Email Integration**: Currently, notifications are in-app only. SMTP email delivery for renewals is mocked.
+- **SSO**: Enterprise Single Sign-On (SAML/OIDC) is planned but not implemented in this version.
+- **Storage**: Documents are currently stored in a local/mock repository, not an S3 bucket.
+
+---
+
+## 🗺️ Future Roadmap
+
+- [ ] **AI-Powered Contract Extraction**: Use OCR and LLMs to automatically extract end dates and notice periods from uploaded PDF MSAs.
+- [ ] **Slack/Teams Integration**: Push critical renewal alerts directly to corporate messaging channels.
+- [ ] **Role-Based Access Control (RBAC)**: Granular permissions for department-level contract visibility (e.g., HR sees only HR contracts).
+- [ ] **Multi-Currency Support**: Dynamic FX conversion for global portfolio valuation.
+
+---
+
 ## 🌐 API Documentation
 
 Every REST endpoint is documented with OpenAPI 3.0 annotations and accessible via **[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)**.

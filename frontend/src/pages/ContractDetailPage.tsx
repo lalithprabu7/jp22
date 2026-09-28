@@ -52,7 +52,7 @@ export default function ContractDetailPage() {
     type: 'CONTRACT',
     version: '1.0',
     reference: '',
-    uploadedBy: 'Alex Mercer (Admin)',
+    uploadedBy: 'Lalith (Admin)',
     description: '',
   });
 
@@ -149,7 +149,7 @@ export default function ContractDetailPage() {
         type: 'CONTRACT',
         version: '1.0',
         reference: '',
-        uploadedBy: 'Alex Mercer (Admin)',
+        uploadedBy: 'Lalith (Admin)',
         description: '',
       });
       fetchData();

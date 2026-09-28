@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, Building2, Mail, Phone, ArrowRight, Trash2, 
-  Edit, Search, FileText, CheckCircle2, MapPin
+import {
+  Plus, Building2, Mail, Phone, Trash2,
+  Edit, Search, FileText, CheckCircle2, MapPin, ChevronRight
 } from 'lucide-react';
 import { getVendors, createVendor, updateVendor, deleteVendor } from '../services/contractService';
 import type { Vendor } from '../types';
@@ -27,37 +27,27 @@ export default function VendorsPage() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { 
-    fetchVendors(); 
-  }, []);
+  useEffect(() => { fetchVendors(); }, []);
 
   const filteredVendors = useMemo(() => {
     if (!searchQuery.trim()) return vendors;
     const q = searchQuery.toLowerCase();
-    return vendors.filter(v => 
+    return vendors.filter(v =>
       v.name.toLowerCase().includes(q) ||
       (v.contactPerson && v.contactPerson.toLowerCase().includes(q)) ||
-      (v.email && v.email.toLowerCase().includes(q)) ||
-      (v.companyAddress && v.companyAddress.toLowerCase().includes(q))
+      (v.email && v.email.toLowerCase().includes(q))
     );
   }, [vendors, searchQuery]);
 
-  const totalContractsCount = useMemo(() => 
-    vendors.reduce((acc, v) => acc + (v.totalContracts || 0), 0),
-    [vendors]
-  );
-
-  const activeContractsCount = useMemo(() => 
-    vendors.reduce((acc, v) => acc + (v.activeContracts || 0), 0),
-    [vendors]
-  );
+  const totalContracts = useMemo(() => vendors.reduce((a, v) => a + (v.totalContracts || 0), 0), [vendors]);
+  const activeContracts = useMemo(() => vendors.reduce((a, v) => a + (v.activeContracts || 0), 0), [vendors]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
     try {
       await deleteVendor(deleteId);
-      toast.success('Vendor deleted successfully.');
+      toast.success('Vendor deleted.');
       fetchVendors();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to delete vendor.');
@@ -67,250 +57,184 @@ export default function VendorsPage() {
     }
   };
 
+  // Generate a stable hue from vendor id
+  const hue = (id: number) => (id * 67) % 360;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
-      {/* Page Header */}
-      <div className="page-header">
+    <div className="space-y-6 pb-12">
+
+      {/* ─── Header ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-            <span style={{ 
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
-              width: 32, height: 32, borderRadius: '10px', 
-              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
-              border: '1px solid rgba(99, 102, 241, 0.3)',
-              color: '#818cf8'
-            }}>
-              <Building2 size={18} />
-            </span>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary-light)' }}>
-              Partner Directory
-            </span>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-purple-400" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Vendors</h1>
           </div>
-          <h1 className="page-title" style={{ fontSize: '1.85rem', fontWeight: 800 }}>Vendor Ecosystem</h1>
-          <p className="page-subtitle">
-            Manage enterprise suppliers, counterparty relationships, contact points, and active contract allocations.
+          <p className="text-sm text-slate-400 ml-[52px]">
+            {vendors.length} partners &nbsp;·&nbsp; {filteredVendors.length} shown
           </p>
         </div>
-
-        <button 
-          className="btn btn-primary" 
+        <button
           onClick={() => { setEditVendor(null); setShowForm(true); }}
-          style={{ boxShadow: '0 8px 24px -4px rgba(99, 102, 241, 0.4)' }}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:shadow-[0_0_28px_rgba(99,102,241,0.5)] hover:scale-[1.02] active:scale-[0.98] shrink-0"
         >
-          <Plus size={16} /> Add Partner Vendor
+          <Plus size={18} /> Add Vendor
         </button>
       </div>
 
-      {/* KPI Stats Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-        <div className="stat-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Vendors</span>
-            <Building2 size={18} style={{ color: '#818cf8' }} />
+      {/* ─── KPI Strip ───────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { label: 'Total Partners', value: vendors.length, color: 'text-white', icon: Building2, bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
+          { label: 'Total Contracts', value: totalContracts, color: 'text-cyan-400', icon: FileText, bg: 'bg-cyan-500/10', border: 'border-cyan-500/20' },
+          { label: 'Active Contracts', value: activeContracts, color: 'text-emerald-400', icon: CheckCircle2, bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+        ].map(k => (
+          <div key={k.label} className={`rounded-2xl bg-[#0c101b] border ${k.border} p-5`}>
+            <div className={`w-9 h-9 rounded-xl ${k.bg} border ${k.border} flex items-center justify-center mb-4`}>
+              <k.icon size={18} className={k.color} />
+            </div>
+            <div className={`text-3xl font-bold mb-1 ${k.color}`}>{k.value}</div>
+            <div className="text-xs text-slate-500 font-medium uppercase tracking-wider">{k.label}</div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.4rem' }}>
-            {vendors.length}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
-            Active corporate counterparties
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Engagements</span>
-            <FileText size={18} style={{ color: '#38bdf8' }} />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#38bdf8', marginTop: '0.4rem' }}>
-            {totalContractsCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
-            Cumulative contracts executed
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active Contracts</span>
-            <CheckCircle2 size={18} style={{ color: 'var(--color-success)' }} />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-success)', marginTop: '0.4rem' }}>
-            {activeContractsCount}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
-            Currently live agreements
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Search & Actions Bar */}
-      <div className="card" style={{ padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search vendors by name, contact person, or email..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ paddingLeft: '2.5rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '12px' }}
-          />
-        </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-          Showing <span style={{ color: 'var(--color-primary-light)' }}>{filteredVendors.length}</span> of {vendors.length} vendors
-        </div>
+      {/* ─── Search ──────────────────────────────────────────────────── */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
+        <input
+          className="w-full pl-11 pr-4 py-3 bg-[#0c101b] border border-white/5 rounded-2xl text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500/40 transition-all"
+          placeholder="Search vendors by name, contact, or email…"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
       </div>
 
-      {/* Vendors Grid */}
+      {/* ─── Grid ────────────────────────────────────────────────────── */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--text-secondary)' }}>
-          <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(99,102,241,0.2)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-          <p style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>Loading partner vendors...</p>
+        <div className="flex flex-col items-center justify-center py-24 gap-4">
+          <div className="w-8 h-8 rounded-full border-2 border-white/10 border-t-indigo-500 animate-spin" />
+          <p className="text-sm text-slate-500">Loading vendors…</p>
         </div>
       ) : filteredVendors.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon"><Building2 size={28} /></div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>No vendors match your search</h3>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0.5rem auto 1.25rem' }}>
-            {searchQuery ? `No vendor records matched "${searchQuery}". Clear your search query or add a new vendor.` : 'Add your first vendor counterparty to start creating contracts.'}
-          </p>
-          <button className="btn btn-primary btn-sm" onClick={() => { setSearchQuery(''); setShowForm(true); }}>
-            <Plus size={14} /> Add Partner Vendor
+        <div className="flex flex-col items-center gap-5 py-24 rounded-2xl bg-[#0c101b] border border-white/5">
+          <div className="w-16 h-16 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <Building2 size={28} className="text-slate-500" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-base font-bold text-white">No vendors found</h3>
+            <p className="text-sm text-slate-500 mt-1">{searchQuery ? `No results for "${searchQuery}"` : 'Add your first vendor to get started'}</p>
+          </div>
+          <button
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all"
+            onClick={() => { setSearchQuery(''); setShowForm(true); }}
+          >
+            <Plus size={16} /> Add Vendor
           </button>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredVendors.map(v => {
-            const initial = v.name ? v.name.charAt(0).toUpperCase() : 'V';
-            const hue = (v.id * 53) % 360;
-
+            const initial = v.name.charAt(0).toUpperCase();
+            const h = hue(v.id);
             return (
-              <div 
-                key={v.id} 
-                className="card" 
-                style={{ 
-                  display: 'flex', flexDirection: 'column', gap: '1.1rem',
-                  position: 'relative', overflow: 'hidden'
-                }}
+              <div
+                key={v.id}
+                className="group relative overflow-hidden rounded-2xl bg-[#0c101b] border border-white/5 hover:border-white/10 transition-all flex flex-col"
               >
-                {/* Ambient top border tint */}
-                <div style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: 3,
-                  background: `linear-gradient(90deg, hsl(${hue}, 80%, 65%), transparent)`
-                }} />
+                {/* Top accent line */}
+                <div
+                  className="absolute top-0 left-0 right-0 h-[2px]"
+                  style={{ background: `linear-gradient(90deg, hsl(${h}, 70%, 55%), transparent)` }}
+                />
 
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                    <div style={{
-                      width: 48, height: 48,
-                      background: `linear-gradient(135deg, hsl(${hue}, 70%, 35%), hsl(${hue}, 80%, 20%))`,
-                      border: `1px solid hsl(${hue}, 80%, 50%, 0.4)`,
-                      boxShadow: `0 8px 16px -4px hsla(${hue}, 80%, 40%, 0.35)`,
-                      borderRadius: 14,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '1.25rem', fontWeight: 800, color: 'white',
-                      flexShrink: 0
-                    }}>
-                      {initial}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
-                        {v.name}
+                <div className="p-5 flex flex-col gap-4 flex-1">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-xl shrink-0 shadow-lg"
+                        style={{
+                          background: `linear-gradient(135deg, hsl(${h},70%,35%), hsl(${h},80%,20%))`,
+                          boxShadow: `0 8px 20px -4px hsla(${h},70%,40%,0.4)`
+                        }}
+                      >
+                        {initial}
                       </div>
-                      {v.contactPerson ? (
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8' }} />
-                          {v.contactPerson}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>No contact assigned</div>
-                      )}
+                      <div className="min-w-0">
+                        <div className="font-bold text-white text-base leading-tight truncate">{v.name}</div>
+                        {v.contactPerson ? (
+                          <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                            {v.contactPerson}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-600 mt-0.5">No contact</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
+                        onClick={() => { setEditVendor(v); setShowForm(true); }}
+                        title="Edit"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        className="p-1.5 rounded-lg bg-white/5 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-all"
+                        onClick={() => setDeleteId(v.id)}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.35rem' }}>
-                    <button
-                      className="btn btn-ghost btn-sm btn-icon"
-                      onClick={() => { setEditVendor(v); setShowForm(true); }}
-                      title="Edit vendor profile"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      className="btn btn-ghost btn-sm btn-icon"
-                      style={{ color: 'var(--color-danger)' }}
-                      onClick={() => setDeleteId(v.id)}
-                      title="Delete vendor"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Contact Coordinates */}
-                <div style={{ 
-                  display: 'flex', flexDirection: 'column', gap: '0.45rem', 
-                  padding: '0.75rem 0.9rem', borderRadius: '12px', 
-                  background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' 
-                }}>
-                  {v.email ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      <Mail size={13} style={{ color: '#818cf8', flexShrink: 0 }} />
-                      <a href={`mailto:${v.email}`} style={{ color: 'var(--text-secondary)', textDecoration: 'none' }} className="hover:text-indigo-400">
-                        {v.email}
+                  {/* Contact Info */}
+                  <div className="space-y-2 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                    {v.email ? (
+                      <a href={`mailto:${v.email}`} className="flex items-center gap-2 text-xs text-slate-400 hover:text-indigo-400 transition-colors">
+                        <Mail size={12} className="text-indigo-400 shrink-0" />
+                        <span className="truncate">{v.email}</span>
                       </a>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>No email registered</div>
-                  )}
-
-                  {v.phone && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      <Phone size={13} style={{ color: '#38bdf8', flexShrink: 0 }} />
-                      <span>{v.phone}</span>
-                    </div>
-                  )}
-
-                  {v.companyAddress && (
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
-                      <MapPin size={13} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
-                      <span style={{ lineHeight: 1.4 }}>{v.companyAddress}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Metrics Pill Grid */}
-                <div style={{ 
-                  display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', 
-                  paddingTop: '0.85rem', borderTop: '1px solid var(--color-border)' 
-                }}>
-                  <div style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)' }}>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Total Contracts
-                    </div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
-                      {v.totalContracts || 0}
-                    </div>
+                    ) : <div className="text-xs text-slate-600">No email</div>}
+                    {v.phone && (
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <Phone size={12} className="text-cyan-400 shrink-0" />
+                        {v.phone}
+                      </div>
+                    )}
+                    {v.companyAddress && (
+                      <div className="flex items-start gap-2 text-xs text-slate-500">
+                        <MapPin size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{v.companyAddress}</span>
+                      </div>
+                    )}
                   </div>
 
-                  <div style={{ padding: '0.5rem 0.75rem', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.15)' }}>
-                    <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Active Live
+                  {/* Metrics */}
+                  <div className="grid grid-cols-2 gap-3 mt-auto">
+                    <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                      <div className="text-[10px] text-slate-600 uppercase tracking-wider font-bold mb-1">Total</div>
+                      <div className="text-2xl font-bold text-white">{v.totalContracts || 0}</div>
                     </div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
-                      {v.activeContracts || 0}
+                    <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+                      <div className="text-[10px] text-emerald-600 uppercase tracking-wider font-bold mb-1">Active</div>
+                      <div className="text-2xl font-bold text-emerald-400">{v.activeContracts || 0}</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Action button */}
+                {/* Footer Action */}
                 <button
-                  className="btn btn-secondary btn-sm"
-                  style={{ width: '100%', justifyContent: 'center', marginTop: 'auto' }}
+                  className="flex items-center justify-between px-5 py-3 border-t border-white/5 text-sm text-slate-400 hover:text-white hover:bg-white/[0.02] transition-all group/btn"
                   onClick={() => navigate(`/contracts?vendor=${v.id}`)}
                 >
-                  View Contracts ({v.totalContracts || 0}) <ArrowRight size={14} />
+                  <span>View Contracts</span>
+                  <ChevronRight size={16} className="group-hover/btn:translate-x-0.5 transition-transform" />
                 </button>
               </div>
             );
@@ -318,7 +242,6 @@ export default function VendorsPage() {
         </div>
       )}
 
-      {/* Modal */}
       {showForm && (
         <VendorFormModal
           vendor={editVendor}
@@ -329,8 +252,8 @@ export default function VendorsPage() {
 
       {deleteId && (
         <ConfirmModal
-          title="Delete Vendor Record"
-          message="Are you sure you want to delete this vendor? Contracts assigned to this vendor will have their vendor reference removed."
+          title="Delete Vendor"
+          message="Delete this vendor? Contracts assigned will have their vendor reference removed."
           confirmLabel="Delete"
           confirmClass="btn-danger"
           onConfirm={handleDelete}
@@ -342,7 +265,7 @@ export default function VendorsPage() {
   );
 }
 
-// ─── Vendor Form Modal ────────────────────────────────────────────────────────
+// ─── Vendor Form Modal ─────────────────────────────────────────────────────────
 interface VendorFormModalProps {
   vendor: Vendor | null;
   onClose: () => void;
@@ -358,33 +281,31 @@ function VendorFormModal({ vendor, onClose, onSuccess }: VendorFormModalProps) {
     companyAddress: vendor?.companyAddress ?? '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = 'Vendor name is required';
-    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email address';
+    if (form.email && !/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Invalid email';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    setLoading(true);
+    setSaving(true);
     try {
       if (vendor) {
         await updateVendor(vendor.id, form);
-        toast.success('Vendor profile updated.');
+        toast.success('Vendor updated.');
       } else {
         await createVendor(form);
-        toast.success('Vendor partner registered.');
+        toast.success('Vendor created.');
       }
       onSuccess();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to save vendor');
-    } finally { 
-      setLoading(false); 
-    }
+    } finally { setSaving(false); }
   };
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -393,89 +314,75 @@ function VendorFormModal({ vendor, onClose, onSuccess }: VendorFormModalProps) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <span style={{ 
-              width: 34, height: 34, borderRadius: '10px', 
-              background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8'
-            }}>
-              <Building2 size={18} />
-            </span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xl" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-[#0c101b] border border-white/10 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+              <Building2 size={18} className="text-indigo-400" />
+            </div>
             <div>
-              <h3 className="modal-title" style={{ fontSize: '1.15rem' }}>{vendor ? 'Edit Vendor Profile' : 'Register New Vendor'}</h3>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
-                {vendor ? 'Update company details and contact points' : 'Add counterparty to contract portfolio'}
-              </p>
+              <h3 className="font-bold text-white">{vendor ? 'Edit Vendor' : 'Add New Vendor'}</h3>
+              <p className="text-xs text-slate-500">{vendor ? 'Update company details' : 'Register a new counterparty'}</p>
             </div>
           </div>
         </div>
 
-        <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="form-group">
-            <label className="form-label">Vendor / Company Name <span className="required">*</span></label>
-            <input 
-              className={`form-input ${errors.name ? 'error' : ''}`} 
-              value={form.name} 
-              onChange={set('name')} 
-              placeholder="e.g., Amazon Web Services (AWS)" 
+        <div className="p-6 space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Vendor Name <span className="text-rose-400">*</span></label>
+            <input
+              className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none transition-all ${errors.name ? 'border-rose-500/50 focus:border-rose-500' : 'border-white/10 focus:border-indigo-500/50'}`}
+              value={form.name}
+              onChange={set('name')}
+              placeholder="e.g., Amazon Web Services"
               autoFocus
             />
-            {errors.name && <span className="form-error">{errors.name}</span>}
+            {errors.name && <p className="text-xs text-rose-400">{errors.name}</p>}
           </div>
 
-          <div className="form-grid form-grid-2">
-            <div className="form-group">
-              <label className="form-label">Contact Person</label>
-              <input 
-                className="form-input" 
-                value={form.contactPerson} 
-                onChange={set('contactPerson')} 
-                placeholder="e.g., Sarah Jenkins" 
-              />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Contact Person</label>
+              <input className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-all" value={form.contactPerson} onChange={set('contactPerson')} placeholder="Sarah Jenkins" />
             </div>
-            <div className="form-group">
-              <label className="form-label">Direct Phone</label>
-              <input 
-                className="form-input" 
-                value={form.phone} 
-                onChange={set('phone')} 
-                placeholder="+1 (800) 555-0199" 
-              />
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Phone</label>
+              <input className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-all" value={form.phone} onChange={set('phone')} placeholder="+1 800 555 0199" />
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Official Email</label>
-            <input 
-              className={`form-input ${errors.email ? 'error' : ''}`} 
-              value={form.email} 
-              onChange={set('email')} 
-              placeholder="billing@partner.com" 
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email</label>
+            <input
+              className={`w-full px-4 py-3 bg-white/5 border rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none transition-all ${errors.email ? 'border-rose-500/50' : 'border-white/10 focus:border-indigo-500/50'}`}
+              value={form.email}
+              onChange={set('email')}
+              placeholder="billing@company.com"
             />
-            {errors.email && <span className="form-error">{errors.email}</span>}
+            {errors.email && <p className="text-xs text-rose-400">{errors.email}</p>}
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Headquarters / Billing Address</label>
-            <textarea 
-              className="form-textarea" 
-              value={form.companyAddress} 
-              onChange={set('companyAddress')} 
-              placeholder="410 Terry Ave N, Seattle, WA 98109, United States" 
-              rows={2} 
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Address</label>
+            <textarea
+              className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none focus:border-indigo-500/50 transition-all resize-none"
+              value={form.companyAddress}
+              onChange={set('companyAddress')}
+              placeholder="410 Terry Ave N, Seattle, WA 98109"
+              rows={2}
             />
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose} disabled={loading}>
-            Cancel
-          </button>
-          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Saving…' : vendor ? 'Update Vendor' : 'Create Vendor'}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/5 bg-black/20">
+          <button className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-sm font-medium transition-all" onClick={onClose} disabled={saving}>Cancel</button>
+          <button
+            className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] disabled:opacity-40"
+            onClick={handleSubmit}
+            disabled={saving}
+          >
+            {saving ? 'Saving…' : vendor ? 'Update Vendor' : 'Create Vendor'}
           </button>
         </div>
       </div>
