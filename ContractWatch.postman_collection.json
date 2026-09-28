@@ -1,0 +1,210 @@
+{
+  "info": {
+    "_postman_id": "cw-collection-001",
+    "name": "ContractWatch API",
+    "description": "ContractWatch — Contract Renewal Reminder Tracker API Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080/api" }
+  ],
+  "item": [
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "Get Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/dashboard/summary",
+            "description": "Returns totalContracts, activeContracts, renewalDue, expiringWithin30Days, etc."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Vendors",
+      "item": [
+        {
+          "name": "Create Vendor",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/vendors",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Vendor Ltd\",\n  \"contactPerson\": \"Jane Doe\",\n  \"email\": \"jane@vendor.com\",\n  \"phone\": \"+91-98765-43210\",\n  \"companyAddress\": \"123 Business Park, Mumbai\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Vendors",
+          "request": { "method": "GET", "url": "{{baseUrl}}/vendors" }
+        },
+        {
+          "name": "Get Vendor by ID",
+          "request": { "method": "GET", "url": "{{baseUrl}}/vendors/1" }
+        },
+        {
+          "name": "Update Vendor",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/vendors/1",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Updated Vendor Ltd\",\n  \"contactPerson\": \"John Updated\"\n}" }
+          }
+        },
+        {
+          "name": "Delete Vendor",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/vendors/1" }
+        }
+      ]
+    },
+    {
+      "name": "Contracts",
+      "item": [
+        {
+          "name": "Create Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contracts",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contractNumber\": \"CW-DEMO-001\",\n  \"title\": \"AWS Cloud Infrastructure\",\n  \"description\": \"Primary cloud services\",\n  \"vendorId\": 1,\n  \"startDate\": \"2026-10-01\",\n  \"endDate\": \"2026-11-30\",\n  \"renewalNoticeDays\": 30\n}"
+            }
+          }
+        },
+        {
+          "name": "Get All Contracts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts" }
+        },
+        {
+          "name": "Get Contract by ID",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/1" }
+        },
+        {
+          "name": "Get Expiring Contracts (30 days)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/expiring?days=30" }
+        },
+        {
+          "name": "Get Renewal Due Contracts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/renewal-due" }
+        },
+        {
+          "name": "Get Active Contracts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/active" }
+        },
+        {
+          "name": "Get Terminated Contracts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/terminated" }
+        },
+        {
+          "name": "Get Expired Contracts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/expired" }
+        },
+        {
+          "name": "Renew Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contracts/1/renew",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"newEndDate\": \"2027-11-30\",\n  \"remarks\": \"Renewed for another year with 5% discount.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Terminate Contract",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contracts/2/terminate",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"remarks\": \"Switching to a different vendor.\"\n}" }
+          }
+        },
+        {
+          "name": "Get Contract Decisions",
+          "request": { "method": "GET", "url": "{{baseUrl}}/contracts/1/decisions" }
+        },
+        {
+          "name": "Add Document Reference",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/contracts/1/document-reference",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"documentName\": \"Contract Agreement.pdf\",\n  \"documentReference\": \"https://drive.google.com/example.pdf\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": { "method": "GET", "url": "{{baseUrl}}/notifications" }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": { "method": "PUT", "url": "{{baseUrl}}/notifications/1/read" }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": { "method": "PUT", "url": "{{baseUrl}}/notifications/read-all" }
+        }
+      ]
+    },
+    {
+      "name": "Copilot",
+      "item": [
+        {
+          "name": "Chat — Expiring Contracts",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/copilot/chat",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Which contracts are expiring in the next 30 days?\"\n}" }
+          }
+        },
+        {
+          "name": "Chat — Renewal Risks",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/copilot/chat",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Summarize my renewal risks\"\n}" }
+          }
+        },
+        {
+          "name": "Chat — Summary",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/copilot/chat",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Give me a portfolio summary\"\n}" }
+          }
+        },
+        {
+          "name": "Chat — Vendor with Most Contracts",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/copilot/chat",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Which vendor has the most contracts?\"\n}" }
+          }
+        },
+        {
+          "name": "Chat — Urgent Contracts",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/copilot/chat",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"message\": \"Show me the most urgent contracts\"\n}" }
+          }
+        }
+      ]
+    }
+  ]
+}
