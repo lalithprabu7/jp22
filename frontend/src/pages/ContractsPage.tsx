@@ -1,18 +1,22 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Search, ExternalLink, Trash2, Eye } from 'lucide-react';
+import { 
+  Plus, Search, ExternalLink, Trash2, Eye, 
+  Building2, RefreshCw 
+} from 'lucide-react';
 import { getContracts, deleteContract } from '../services/contractService';
 import type { Contract, ContractStatus } from '../types';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmModal from '../components/ConfirmModal';
 import ContractFormModal from '../components/ContractFormModal';
-import { formatDate, getDaysLabel, getUrgencyColor } from '../utils/formatters';
+import { formatDate, getDaysLabel, getUrgencyColor, formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 
 const STATUS_FILTERS: { label: string; value: ContractStatus | 'ALL' | 'EXPIRING' }[] = [
-  { label: 'All', value: 'ALL' },
+  { label: 'All Contracts', value: 'ALL' },
   { label: 'Active', value: 'ACTIVE' },
   { label: 'Renewal Due', value: 'RENEWAL_DUE' },
+  { label: 'Expiring in 30d', value: 'EXPIRING' },
   { label: 'Renewed', value: 'RENEWED' },
   { label: 'Terminated', value: 'TERMINATED' },
   { label: 'Expired', value: 'EXPIRED' },
@@ -32,6 +36,7 @@ export default function ContractsPage() {
   useEffect(() => {
     const filter = searchParams.get('filter');
     if (filter === 'expiring') setStatusFilter('EXPIRING');
+    if (filter === 'active') setStatusFilter('ACTIVE');
   }, [searchParams]);
 
   const fetchContracts = () => {
@@ -80,37 +85,49 @@ export default function ContractsPage() {
   };
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="space-y-6 pb-12">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="page-title">Contracts</h1>
-          <p className="page-subtitle">{contracts.length} contracts in the system</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Enterprise Contracts
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            {contracts.length} active enterprise commitments, vendor terms, and notice period trackers.
+          </p>
         </div>
         <button 
           className="btn btn-primary shadow-lg shadow-indigo-600/30 flex items-center gap-2" 
           onClick={() => setShowForm(true)}
-          style={{ padding: '0.6rem 1.25rem', fontSize: '0.875rem', fontWeight: 600 }}
+          style={{ padding: '0.65rem 1.4rem', fontSize: '0.875rem', fontWeight: 600 }}
         >
           <Plus size={16} /> Add Contract
         </button>
       </div>
 
-      {/* Filter Bar */}
-      <div className="filter-bar">
-        <div className="search-input-wrap">
-          <Search size={16} className="search-icon" />
+      {/* Filter and Search Bar */}
+      <div className="card p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
+        {/* Search Input */}
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
-            className="form-input"
-            placeholder="Search by title, number, or vendor…"
+            className="w-full pl-10 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
+            placeholder="Search by title, contract number, or vendor…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-        <div className="filter-tabs">
+
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
           {STATUS_FILTERS.map(f => (
             <button
               key={f.value}
-              className={`filter-tab ${statusFilter === f.value ? 'active' : ''}`}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                statusFilter === f.value 
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                  : 'bg-slate-900/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+              }`}
               onClick={() => setStatusFilter(f.value)}
             >
               {f.label}
@@ -119,90 +136,118 @@ export default function ContractsPage() {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table Container */}
       <div className="table-container">
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading contracts…
+          <div className="py-20 text-center text-slate-400 text-sm">
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
+            Loading enterprise contracts repository...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon"><Search size={28} /></div>
-            <h3>No contracts found</h3>
-            <p>Try adjusting your search or filter, or add a new contract.</p>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
-              <Plus size={14} /> Add Contract
+          <div className="text-center py-20 bg-slate-900/40 text-slate-400">
+            <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-3 text-slate-500">
+              <Search size={22} />
+            </div>
+            <h3 className="text-base font-bold text-slate-200">No matching contracts found</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              Try adjusting your search criteria or status filter to see other records.
+            </p>
+            <button className="btn btn-primary btn-sm mt-4" onClick={() => setShowForm(true)}>
+              <Plus size={14} /> Add New Contract
             </button>
           </div>
         ) : (
           <table>
             <thead>
               <tr>
-                <th>Contract</th>
+                <th>Contract & Identifier</th>
                 <th>Vendor</th>
-                <th>Start Date</th>
-                <th>End Date</th>
+                <th>Runway</th>
                 <th>Notice Period</th>
                 <th>Renewal Review</th>
+                <th>Value</th>
+                <th>Risk Engine</th>
                 <th>Status</th>
-                <th>Days Left</th>
-                <th>Actions</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
-                <tr key={c.id}>
-                  <td>
-                    <div style={{ fontWeight: 600 }}>{c.title}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{c.contractNumber}</div>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{c.vendorName}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{formatDate(c.startDate)}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{formatDate(c.endDate)}</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{c.renewalNoticeDays} days</td>
-                  <td style={{ color: 'var(--text-secondary)' }}>{formatDate(c.renewalReviewDate)}</td>
-                  <td><StatusBadge status={c.status} /></td>
-                  <td>
-                    <span style={{
-                      fontWeight: 600,
-                      fontSize: '0.8rem',
-                      color: getUrgencyColor(c.daysUntilExpiry)
-                    }}>
-                      {c.daysUntilExpiry >= 0 ? getDaysLabel(c.daysUntilExpiry) : 'Expired'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="flex gap-2">
-                      <button
-                        className="btn btn-ghost btn-sm btn-icon"
-                        onClick={() => navigate(`/contracts/${c.id}`)}
-                        title="View details"
-                      >
-                        <Eye size={14} />
-                      </button>
-                      {c.documentReference && (
-                        <a
-                          href={c.documentReference}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-ghost btn-sm btn-icon"
-                          title="Open document"
+              {filtered.map(c => {
+                const urgency = getUrgencyColor(c.daysUntilExpiry);
+                return (
+                  <tr 
+                    key={c.id} 
+                    className="cursor-pointer hover:bg-slate-800/40 transition-colors"
+                    onClick={() => navigate(`/contracts/${c.id}`)}
+                  >
+                    <td>
+                      <div className="font-semibold text-slate-100">{c.title}</div>
+                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">{c.contractNumber}</div>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-1.5 text-slate-300 font-medium text-xs">
+                        <Building2 size={13} className="text-slate-500" />
+                        <span>{c.vendorName}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="text-xs font-bold font-mono" style={{ color: urgency }}>
+                        {c.daysUntilExpiry >= 0 ? getDaysLabel(c.daysUntilExpiry) : 'Expired'}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono">End: {formatDate(c.endDate)}</div>
+                    </td>
+                    <td className="text-xs text-slate-300 font-mono">
+                      {c.renewalNoticeDays} days
+                    </td>
+                    <td className="text-xs font-mono text-amber-400/90 font-medium">
+                      {formatDate(c.renewalReviewDate)}
+                    </td>
+                    <td className="font-mono text-slate-200 font-semibold text-xs">
+                      {formatCurrency(c.contractValue, c.currency)}
+                    </td>
+                    <td>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        c.riskLevel === 'CRITICAL' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+                        c.riskLevel === 'HIGH' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                        c.riskLevel === 'MEDIUM' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                        'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      }`}>
+                        {c.riskLevel || 'LOW'} ({c.riskScore || 0})
+                      </span>
+                    </td>
+                    <td><StatusBadge status={c.status} /></td>
+                    <td className="text-right">
+                      <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                          onClick={() => navigate(`/contracts/${c.id}`)}
+                          title="Inspect Details"
                         >
-                          <ExternalLink size={14} />
-                        </a>
-                      )}
-                      <button
-                        className="btn btn-ghost btn-sm btn-icon"
-                        style={{ color: 'var(--color-danger)' }}
-                        onClick={() => setDeleteId(c.id)}
-                        title="Delete contract"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          <Eye size={14} />
+                        </button>
+                        {c.documentReference && (
+                          <a
+                            href={c.documentReference}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+                            title="Open Document Reference"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                        <button
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                          onClick={() => setDeleteId(c.id)}
+                          title="Delete Contract"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -218,7 +263,7 @@ export default function ContractsPage() {
       {deleteId && (
         <ConfirmModal
           title="Delete Contract"
-          message="Are you sure you want to permanently delete this contract? This action cannot be undone."
+          message="Are you sure you want to permanently delete this contract? This will remove all associated documents, decisions, and audit events."
           confirmLabel="Delete"
           confirmClass="btn-danger"
           onConfirm={handleDelete}

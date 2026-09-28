@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, RefreshCw, XCircle, Edit, Trash2,
-  FileText, Building2, ExternalLink,
+  FileText, ExternalLink,
   CheckCircle2, ShieldAlert, DollarSign,
-  Plus, History, ChevronRight
+  Plus, History
 } from 'lucide-react';
 import {
   getContract, getContractDecisions, renewContract,
@@ -18,7 +18,7 @@ import StatusBadge from '../components/StatusBadge';
 import ConfirmModal from '../components/ConfirmModal';
 import ContractFormModal from '../components/ContractFormModal';
 import AuditTimeline from '../components/AuditTimeline';
-import { formatDate, formatDateTime, getDaysLabel, getUrgencyColor } from '../utils/formatters';
+import { formatDate, formatDateTime, getDaysLabel, getUrgencyColor, formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 
 export default function ContractDetailPage() {
@@ -94,6 +94,7 @@ export default function ContractDetailPage() {
       setShowRenewModal(false);
       setRenewDate('');
       setRenewRemarks('');
+      document.dispatchEvent(new CustomEvent('notifications-updated'));
       fetchData();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to renew contract');
@@ -106,9 +107,10 @@ export default function ContractDetailPage() {
     setProcessing(true);
     try {
       await terminateContract(contractId, { remarks: termRemarks });
-      toast.success('Contract terminated.');
+      toast.success('Contract marked as terminated.');
       setShowTermModal(false);
       setTermRemarks('');
+      document.dispatchEvent(new CustomEvent('notifications-updated'));
       fetchData();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to terminate contract');
@@ -121,7 +123,8 @@ export default function ContractDetailPage() {
     setProcessing(true);
     try {
       await deleteContract(contractId);
-      toast.success('Contract deleted.');
+      toast.success('Contract record deleted.');
+      document.dispatchEvent(new CustomEvent('notifications-updated'));
       navigate('/contracts');
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Failed to delete contract');
@@ -133,13 +136,13 @@ export default function ContractDetailPage() {
   const handleAddDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!docForm.name.trim() || !docForm.reference.trim()) {
-      toast.error('Please provide a document name and URL/path reference.');
+      toast.error('Please provide a document title and URL/reference.');
       return;
     }
     setProcessing(true);
     try {
       await addContractDocument(contractId, docForm);
-      toast.success('Document uploaded / referenced successfully.');
+      toast.success('Document reference attached.');
       setShowAddDocModal(false);
       setDocForm({
         name: '',
@@ -161,7 +164,7 @@ export default function ContractDetailPage() {
     if (!window.confirm('Delete this document reference?')) return;
     try {
       await deleteDocument(docId);
-      toast.success('Document removed.');
+      toast.success('Document reference removed.');
       fetchData();
     } catch (err: any) {
       toast.error('Failed to remove document.');
@@ -170,9 +173,9 @@ export default function ContractDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh] text-slate-400">
-        <RefreshCw className="w-8 h-8 animate-spin text-indigo-500 mr-3" />
-        <span>Loading enterprise contract details...</span>
+      <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'inline-block', width: 36, height: 36, border: '3px solid rgba(99,102,241,0.2)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>Loading enterprise contract details...</p>
       </div>
     );
   }
@@ -183,192 +186,239 @@ export default function ContractDetailPage() {
   const canRenew = contract.status !== 'TERMINATED' && contract.status !== 'EXPIRED';
   const canTerminate = contract.status !== 'TERMINATED';
 
-  // Dynamic Risk Level Colors
-  const getRiskColor = (level: string) => {
+  const getRiskTheme = (level: string) => {
     switch (level) {
-      case 'CRITICAL': return { bg: 'bg-rose-500/10', border: 'border-rose-500/30', text: 'text-rose-400', bar: '#f43f5e' };
-      case 'HIGH': return { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-400', bar: '#f59e0b' };
-      case 'MEDIUM': return { bg: 'bg-blue-500/10', border: 'border-blue-500/30', text: 'text-blue-400', bar: '#3b82f6' };
+      case 'CRITICAL': 
+        return { bg: 'rgba(239, 68, 68, 0.15)', border: 'rgba(239, 68, 68, 0.3)', text: '#f87171', bar: '#ef4444' };
+      case 'HIGH': 
+        return { bg: 'rgba(245, 158, 11, 0.15)', border: 'rgba(245, 158, 11, 0.3)', text: '#fbbf24', bar: '#f59e0b' };
+      case 'MEDIUM': 
+        return { bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.3)', text: '#38bdf8', bar: '#0284c7' };
       case 'LOW':
-      default: return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-400', bar: '#10b981' };
+      default: 
+        return { bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', text: '#34d399', bar: '#10b981' };
     }
   };
 
-  const riskTheme = getRiskColor(contract.riskLevel);
+  const riskTheme = getRiskTheme(contract.riskLevel);
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Back button */}
-      <button 
-        className="btn btn-ghost btn-sm flex items-center gap-1.5 text-slate-400 hover:text-slate-100"
-        onClick={() => navigate('/contracts')}
-      >
-        <ArrowLeft size={16} /> Back to Contracts
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
+      {/* Top back navigation */}
+      <div>
+        <button 
+          className="btn btn-ghost btn-sm" 
+          onClick={() => navigate('/contracts')}
+          style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}
+        >
+          <ArrowLeft size={16} /> Back to Contracts Directory
+        </button>
+      </div>
 
-      {/* Hero Header */}
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 backdrop-blur-md flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
-        <div>
-          <div className="flex flex-wrap items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-slate-100">{contract.title}</h1>
-            <StatusBadge status={contract.status} />
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${riskTheme.bg} ${riskTheme.text} border ${riskTheme.border}`}>
-              Risk: {contract.riskLevel} ({contract.riskScore}/100)
-            </span>
+      {/* Hero Header Card */}
+      <div className="card" style={{ padding: '1.75rem', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1.25rem' }}>
+          <div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.65rem', marginBottom: '0.5rem' }}>
+              <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0, letterSpacing: '-0.02em' }}>
+                {contract.title}
+              </h1>
+              <StatusBadge status={contract.status} />
+              <span style={{ 
+                fontSize: '0.72rem', fontWeight: 800, padding: '0.2rem 0.65rem', borderRadius: '20px',
+                background: riskTheme.bg, color: riskTheme.text, border: `1px solid ${riskTheme.border}`,
+                textTransform: 'uppercase', letterSpacing: '0.05em'
+              }}>
+                Risk: {contract.riskLevel} ({contract.riskScore}/100)
+              </span>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Reference ID: <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)', fontWeight: 600 }}>{contract.contractNumber}</span>
+              &nbsp;&bull;&nbsp;
+              Vendor Partner: <span style={{ color: '#818cf8', fontWeight: 700 }}>{contract.vendorName}</span>
+            </p>
           </div>
-          <p className="text-sm text-slate-400">
-            Contract Number: <span className="font-mono text-slate-200">{contract.contractNumber}</span> • Vendor: <span className="text-indigo-400 font-medium">{contract.vendorName}</span>
-          </p>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          {canRenew && (
-            <button className="btn btn-success btn-sm flex items-center gap-1.5" onClick={() => setShowRenewModal(true)}>
-              <RefreshCw size={14} /> Renew Contract
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
+            {canRenew && (
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => setShowRenewModal(true)}
+                style={{ background: 'linear-gradient(135deg, #059669, #10b981)', borderColor: 'rgba(16, 185, 129, 0.4)' }}
+              >
+                <RefreshCw size={14} /> Renew Contract
+              </button>
+            )}
+            {canTerminate && (
+              <button 
+                className="btn btn-sm" 
+                onClick={() => setShowTermModal(true)}
+                style={{ 
+                  background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', 
+                  border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '10px' 
+                }}
+              >
+                <XCircle size={14} /> Terminate
+              </button>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowEditModal(true)}>
+              <Edit size={14} /> Edit
             </button>
-          )}
-          {canTerminate && (
-            <button className="btn btn-danger btn-sm flex items-center gap-1.5" onClick={() => setShowTermModal(true)}>
-              <XCircle size={14} /> Terminate
+            <button 
+              className="btn btn-ghost btn-sm btn-icon" 
+              onClick={() => setShowDeleteModal(true)} 
+              title="Delete Contract"
+              style={{ color: 'var(--color-danger)' }}
+            >
+              <Trash2 size={16} />
             </button>
-          )}
-          <button className="btn btn-secondary btn-sm flex items-center gap-1.5" onClick={() => setShowEditModal(true)}>
-            <Edit size={14} /> Edit
-          </button>
-          <button className="btn btn-ghost btn-sm text-rose-400 hover:bg-rose-500/10 p-2" onClick={() => setShowDeleteModal(true)} title="Delete Contract">
-            <Trash2 size={16} />
-          </button>
+          </div>
         </div>
       </div>
 
       {/* Grid: 2 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (7 cols): Overview, Dates, Financials, Risk Meter */}
-        <div className="lg:col-span-7 space-y-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+        {/* Left Column: Risk, Dates, Commercials, Documents */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* Dynamic Risk Score Analysis Card */}
-          <div className={`rounded-2xl p-5 border ${riskTheme.border} ${riskTheme.bg} shadow-lg backdrop-blur-sm`}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <ShieldAlert className={`w-5 h-5 ${riskTheme.text}`} />
-                <h3 className="font-semibold text-slate-200">Contract Risk Engine Analysis</h3>
+          {/* Risk Engine Analysis Card */}
+          <div className="card" style={{ 
+            padding: '1.5rem', 
+            background: `linear-gradient(135deg, ${riskTheme.bg}, rgba(15, 23, 42, 0.8))`,
+            border: `1px solid ${riskTheme.border}`
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <ShieldAlert size={20} style={{ color: riskTheme.text }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Automated Risk Engine Assessment
+                </h3>
               </div>
-              <span className={`text-lg font-black font-mono ${riskTheme.text}`}>
-                {contract.riskScore} <span className="text-xs font-normal opacity-70">/ 100</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 900, fontFamily: 'monospace', color: riskTheme.text }}>
+                {contract.riskScore} <span style={{ fontSize: '0.75rem', fontWeight: 500, opacity: 0.7 }}>/ 100</span>
               </span>
             </div>
 
-            {/* Meter Bar */}
-            <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden mb-4">
+            {/* Risk Meter Bar */}
+            <div style={{ width: '100%', height: '8px', borderRadius: '4px', background: 'rgba(0, 0, 0, 0.35)', overflow: 'hidden', marginBottom: '1rem' }}>
               <div 
-                className="h-full rounded-full transition-all duration-500" 
-                style={{ width: `${Math.max(5, Math.min(100, contract.riskScore))}%`, backgroundColor: riskTheme.bar }}
+                style={{ 
+                  height: '100%', borderRadius: '4px', 
+                  width: `${Math.max(5, Math.min(100, contract.riskScore))}%`, 
+                  background: riskTheme.bar,
+                  transition: 'width 0.6s ease' 
+                }} 
               />
             </div>
 
-            {/* Risk Reasons */}
-            <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Risk Factors Identified:</span>
+            {/* Risk Factor Explanations */}
+            <div>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem' }}>
+                Risk Drivers Identified:
+              </span>
               {contract.riskReasons && contract.riskReasons.length > 0 ? (
-                <ul className="space-y-1">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                   {contract.riskReasons.map((reason, idx) => (
-                    <li key={idx} className="text-xs text-slate-300 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                      {reason}
-                    </li>
+                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fbbf24', flexShrink: 0 }} />
+                      <span>{reason}</span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               ) : (
-                <p className="text-xs text-slate-400">All risk metrics are nominal. Good renewal runway and documentation present.</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', margin: 0 }}>
+                  All risk metrics are nominal. Safe renewal runway and documentation present.
+                </p>
               )}
             </div>
           </div>
 
-          {/* Dates & Countdown */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4">
-              <div className="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-1">Start Date</div>
-              <div className="text-base font-bold text-slate-200">{formatDate(contract.startDate)}</div>
+          {/* Dates & Urgency Countdown */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.85rem' }}>
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#10b981', marginBottom: '0.25rem' }}>
+                Start Date
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {formatDate(contract.startDate)}
+              </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4">
-              <div className="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-1">Renewal Review</div>
-              <div className="text-base font-bold text-slate-200">{formatDate(contract.renewalReviewDate)}</div>
-              <div className="text-xs text-slate-400 mt-1">Notice: {contract.renewalNoticeDays} days</div>
+            <div className="card" style={{ padding: '1rem' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#fbbf24', marginBottom: '0.25rem' }}>
+                Renewal Review
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {formatDate(contract.renewalReviewDate)}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                Notice: {contract.renewalNoticeDays}d
+              </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-4" style={{ borderColor: urgencyColor + '55' }}>
-              <div className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: urgencyColor }}>End / Expiry</div>
-              <div className="text-base font-bold text-slate-200">{formatDate(contract.endDate)}</div>
-              <div className="text-xs font-semibold mt-1" style={{ color: urgencyColor }}>
+            <div className="card" style={{ padding: '1rem', borderColor: urgencyColor + '55' }}>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: urgencyColor, marginBottom: '0.25rem' }}>
+                End / Expiry
+              </div>
+              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                {formatDate(contract.endDate)}
+              </div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: urgencyColor, marginTop: '0.2rem' }}>
                 {getDaysLabel(contract.daysUntilExpiry)}
               </div>
             </div>
           </div>
 
-          {/* Financial & Commercial Terms */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-            <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mb-4">
-              <DollarSign className="w-4 h-4 text-emerald-400" /> Commercial Terms & Value
+          {/* Commercial Terms & Value */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.85rem' }}>
+              <DollarSign size={16} style={{ color: '#10b981' }} /> Financial & Commercial Terms
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
               <div>
-                <span className="text-xs text-slate-500">Contract Value</span>
-                <div className="text-xl font-bold text-slate-100 mt-0.5">
-                  {contract.currency === 'INR' ? '₹' : '$'}{contract.contractValue ? Number(contract.contractValue).toLocaleString() : '0'}
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Total Contract Value</span>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {formatCurrency(Number(contract.contractValue || 0))}
                 </div>
               </div>
               <div>
-                <span className="text-xs text-slate-500">Currency</span>
-                <div className="text-sm font-semibold text-slate-300 mt-1">
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Currency</span>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
                   {contract.currency || 'USD'}
                 </div>
               </div>
               <div>
-                <span className="text-xs text-slate-500">Billing Cadence</span>
-                <div className="text-sm font-semibold text-slate-300 mt-1">
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Billing Cadence</span>
+                <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
                   {contract.paymentFrequency || 'ANNUAL'}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Vendor Information & Description */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                <Building2 className="w-4 h-4 text-indigo-400" /> Vendor Information
-              </div>
-              <button 
-                onClick={() => navigate(`/vendors?id=${contract.vendorId}`)}
-                className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-medium"
-              >
-                View Vendor Profile <ChevronRight size={14} />
-              </button>
+          {/* Scope and Description */}
+          {contract.description && (
+            <div className="card" style={{ padding: '1.25rem' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', display: 'block', marginBottom: '0.4rem' }}>
+                Scope & Agreement Terms
+              </span>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
+                {contract.description}
+              </p>
             </div>
-            <div>
-              <div className="text-lg font-bold text-slate-100">{contract.vendorName}</div>
-              {contract.vendorEmail && (
-                <div className="text-sm text-slate-400 mt-0.5">{contract.vendorEmail}</div>
-              )}
-            </div>
-            {contract.description && (
-              <div className="pt-3 border-t border-slate-800">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">Description & Scope</span>
-                <p className="text-sm text-slate-300 leading-relaxed">{contract.description}</p>
-              </div>
-            )}
-          </div>
+          )}
 
-          {/* Documents Section (Multi-document support) */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                <FileText className="w-4 h-4 text-blue-400" /> Contract Documents ({documents.length})
+          {/* Documents Section */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <FileText size={16} style={{ color: '#818cf8' }} /> Document Vault ({documents.length})
               </div>
               <button 
-                className="btn btn-secondary btn-sm flex items-center gap-1 text-xs"
+                className="btn btn-secondary btn-sm" 
+                style={{ fontSize: '0.75rem' }} 
                 onClick={() => setShowAddDocModal(true)}
               >
                 <Plus size={14} /> Add Document
@@ -376,81 +426,73 @@ export default function ContractDetailPage() {
             </div>
 
             {documents.length === 0 ? (
-              <div className="text-center py-6 border border-dashed border-slate-800 rounded-xl text-slate-400 text-sm">
-                <FileText className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                <p>No document references attached to this contract.</p>
-                <button 
-                  className="btn btn-ghost btn-sm text-indigo-400 mt-2"
-                  onClick={() => setShowAddDocModal(true)}
-                >
-                  Upload or Link Document Reference
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', border: '1px dashed var(--color-border)', borderRadius: '12px' }}>
+                <p style={{ fontSize: '0.85rem', margin: '0 0 0.5rem' }}>No document references attached to this agreement.</p>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowAddDocModal(true)}>
+                  Upload Reference
                 </button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-800 text-xs text-slate-400 uppercase font-semibold">
-                      <th className="pb-2">Name</th>
-                      <th className="pb-2">Type</th>
-                      <th className="pb-2">Ver</th>
-                      <th className="pb-2">Reference</th>
-                      <th className="pb-2 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60">
-                    {documents.map((doc) => (
-                      <tr key={doc.id} className="hover:bg-slate-800/30 transition-colors">
-                        <td className="py-2.5 font-medium text-slate-200">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {documents.map((doc) => (
+                  <div 
+                    key={doc.id}
+                    style={{ 
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
+                      padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <FileText size={16} style={{ color: '#818cf8' }} />
+                      <div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           {doc.name}
-                        </td>
-                        <td className="py-2.5">
-                          <span className="px-2 py-0.5 text-xs rounded bg-slate-800 text-slate-300 font-mono">
-                            {doc.type}
-                          </span>
-                        </td>
-                        <td className="py-2.5 text-slate-400 text-xs font-mono">
-                          v{doc.version || '1.0'}
-                        </td>
-                        <td className="py-2.5">
-                          <a 
-                            href={doc.reference} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-xs text-indigo-400 hover:underline flex items-center gap-1"
-                          >
-                            Open Link <ExternalLink size={12} />
-                          </a>
-                        </td>
-                        <td className="py-2.5 text-right">
-                          <button 
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="text-slate-500 hover:text-rose-400 p-1"
-                            title="Remove Document"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>
+                          {doc.type} &bull; v{doc.version || '1.0'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <a 
+                        href={doc.reference} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn btn-ghost btn-sm"
+                        style={{ fontSize: '0.75rem' }}
+                      >
+                        Open <ExternalLink size={12} />
+                      </a>
+                      <button 
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="btn btn-ghost btn-sm btn-icon"
+                        style={{ color: 'var(--color-danger)' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column (5 cols): Audit Timeline & Renewal History */}
-        <div className="lg:col-span-5 space-y-6">
+        {/* Right Column: Audit Trail & Formal Decisions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
           {/* Audit Event Timeline */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2 text-slate-300 font-semibold text-sm">
-                <History className="w-4 h-4 text-indigo-400" />
-                <span>Contract Audit Trail</span>
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <History size={18} style={{ color: '#818cf8' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  Contract Audit Timeline
+                </h3>
               </div>
-              <span className="text-xs text-slate-500 font-mono">
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
                 {auditEvents.length} events logged
               </span>
             </div>
@@ -458,37 +500,56 @@ export default function ContractDetailPage() {
             <AuditTimeline events={auditEvents} loading={loading} />
           </div>
 
-          {/* Renewal Decision History */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 shadow-lg">
-            <div className="font-semibold text-slate-300 text-sm mb-4 flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-teal-400" />
-              <span>Formal Renewal Decisions</span>
+          {/* Formal Decisions Log */}
+          <div className="card" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+              <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Formal Renewal Decisions
+              </h3>
             </div>
 
             {decisions.length === 0 ? (
-              <div className="text-center py-6 text-slate-500 text-xs">
+              <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                 No formal renewal decisions recorded yet.
               </div>
             ) : (
-              <div className="space-y-3">
-                {decisions.map((d) => (
-                  <div key={d.id} className="p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`font-semibold ${d.decision === 'RENEWED' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                        {d.decision === 'RENEWED' ? '✅ RENEWED' : '❌ TERMINATED'}
-                      </span>
-                      <span className="text-slate-500 font-mono">{formatDateTime(d.createdAt)}</span>
-                    </div>
-                    {d.newEndDate && (
-                      <div className="text-slate-300">
-                        New End Date: <span className="font-bold text-slate-200">{formatDate(d.newEndDate)}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {decisions.map((d) => {
+                  const isRenew = d.decision === 'RENEWED';
+                  return (
+                    <div 
+                      key={d.id} 
+                      style={{ 
+                        padding: '0.85rem 1rem', borderRadius: '12px', 
+                        background: isRenew ? 'rgba(16, 185, 129, 0.05)' : 'rgba(239, 68, 68, 0.05)',
+                        border: `1px solid ${isRenew ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                        <span style={{ 
+                          fontSize: '0.75rem', fontWeight: 800, 
+                          color: isRenew ? '#10b981' : '#f87171' 
+                        }}>
+                          {isRenew ? '✅ RENEWAL CONFIRMED' : '❌ TERMINATED'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                          {formatDateTime(d.createdAt)}
+                        </span>
                       </div>
-                    )}
-                    {d.remarks && (
-                      <div className="text-slate-400 italic mt-1">"{d.remarks}"</div>
-                    )}
-                  </div>
-                ))}
+                      {d.newEndDate && (
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          New Maturity Date: <strong style={{ color: 'var(--text-primary)' }}>{formatDate(d.newEndDate)}</strong>
+                        </div>
+                      )}
+                      {d.remarks && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontStyle: 'italic', marginTop: '0.25rem' }}>
+                          "{d.remarks}"
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -500,16 +561,16 @@ export default function ContractDetailPage() {
       {/* Renew Modal */}
       {showRenewModal && (
         <div className="modal-overlay" onClick={() => setShowRenewModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">🔄 Renew Contract</h3>
+              <h3 className="modal-title">🔄 Execute Renewal Decision</h3>
             </div>
-            <div className="modal-body space-y-4">
-              <p className="text-xs text-slate-400">
-                Renewing <strong>{contract.title}</strong>. Current end date is <strong>{formatDate(contract.endDate)}</strong>.
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Renewing <strong>{contract.title}</strong>. Current expiration is <strong>{formatDate(contract.endDate)}</strong>.
               </p>
               <div className="form-group">
-                <label className="form-label">New End Date <span className="required">*</span></label>
+                <label className="form-label">New Maturity / End Date <span className="required">*</span></label>
                 <input
                   type="date"
                   className="form-input"
@@ -520,20 +581,25 @@ export default function ContractDetailPage() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Remarks / Terms Updated</label>
+                <label className="form-label">Decision Notes / Commercial Terms Updated</label>
                 <textarea
                   className="form-textarea"
                   rows={3}
-                  placeholder="e.g. Renewed for an additional 12-month term with 5% discount."
+                  placeholder="e.g. Renewed for an additional 12-month period with approved enterprise terms."
                   value={renewRemarks}
                   onChange={e => setRenewRemarks(e.target.value)}
                 />
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowRenewModal(false)}>Cancel</button>
-              <button className="btn btn-success" onClick={handleRenew} disabled={processing}>
-                {processing ? 'Renewing...' : 'Confirm Renewal'}
+              <button className="btn btn-ghost" onClick={() => setShowRenewModal(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleRenew} 
+                disabled={processing}
+                style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
+              >
+                {processing ? 'Processing...' : 'Confirm Renewal'}
               </button>
             </div>
           </div>
@@ -543,28 +609,32 @@ export default function ContractDetailPage() {
       {/* Terminate Modal */}
       {showTermModal && (
         <div className="modal-overlay" onClick={() => setShowTermModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h3 className="modal-title text-rose-400">❌ Terminate Contract</h3>
+              <h3 className="modal-title" style={{ color: '#f87171' }}>❌ Terminate Contract</h3>
             </div>
-            <div className="modal-body space-y-4">
-              <p className="text-xs text-slate-400">
-                Terminating <strong>{contract.title}</strong>. This contract will be removed from all active renewal alerts.
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Terminating <strong>{contract.title}</strong>. This contract will transition out of active tracking.
               </p>
               <div className="form-group">
-                <label className="form-label">Reason for Termination</label>
+                <label className="form-label">Termination Reason</label>
                 <textarea
                   className="form-textarea"
                   rows={3}
-                  placeholder="e.g. Replaced by alternate provider; vendor service discontinued."
+                  placeholder="e.g. Service replaced by internal tooling or renegotiated vendor agreement."
                   value={termRemarks}
                   onChange={e => setTermRemarks(e.target.value)}
                 />
               </div>
             </div>
             <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowTermModal(false)}>Cancel</button>
-              <button className="btn btn-danger" onClick={handleTerminate} disabled={processing}>
+              <button className="btn btn-ghost" onClick={() => setShowTermModal(false)}>Cancel</button>
+              <button 
+                className="btn btn-danger" 
+                onClick={handleTerminate} 
+                disabled={processing}
+              >
                 {processing ? 'Terminating...' : 'Confirm Termination'}
               </button>
             </div>
@@ -575,12 +645,12 @@ export default function ContractDetailPage() {
       {/* Add Document Modal */}
       {showAddDocModal && (
         <div className="modal-overlay" onClick={() => setShowAddDocModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <form onSubmit={handleAddDocument}>
               <div className="modal-header">
-                <h3 className="modal-title">📄 Add Document Reference</h3>
+                <h3 className="modal-title">📄 Attach Document Reference</h3>
               </div>
-              <div className="modal-body space-y-4">
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">Document Name <span className="required">*</span></label>
                   <input
@@ -593,9 +663,9 @@ export default function ContractDetailPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="form-grid form-grid-2">
                   <div className="form-group">
-                    <label className="form-label">Type</label>
+                    <label className="form-label">Classification</label>
                     <select
                       className="form-input"
                       value={docForm.type}
@@ -622,11 +692,11 @@ export default function ContractDetailPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Reference / URL <span className="required">*</span></label>
+                  <label className="form-label">Reference URL or Cloud Path <span className="required">*</span></label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="https://drive.google.com/... or /docs/msa_2026.pdf"
+                    placeholder="https://drive.google.com/... or s3://..."
                     value={docForm.reference}
                     onChange={e => setDocForm({ ...docForm, reference: e.target.value })}
                     required
@@ -634,11 +704,11 @@ export default function ContractDetailPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Description (Optional)</label>
+                  <label className="form-label">Description / Scope Notes</label>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Signed counterparty execution copy"
+                    placeholder="e.g. Fully executed bilateral agreement"
                     value={docForm.description}
                     onChange={e => setDocForm({ ...docForm, description: e.target.value })}
                   />
@@ -646,11 +716,11 @@ export default function ContractDetailPage() {
               </div>
 
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddDocModal(false)}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowAddDocModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                  {processing ? 'Saving...' : 'Add Document'}
+                  {processing ? 'Attaching...' : 'Attach Document'}
                 </button>
               </div>
             </form>
@@ -673,7 +743,7 @@ export default function ContractDetailPage() {
       {/* Delete Confirmation */}
       {showDeleteModal && (
         <ConfirmModal
-          title="Delete Contract"
+          title="Delete Contract Record"
           message={`Are you sure you want to permanently delete "${contract.title}"? This cannot be undone.`}
           confirmLabel="Delete"
           confirmClass="btn-danger"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, AlertTriangle, 
@@ -41,27 +41,30 @@ export const CalendarPage = () => {
   };
 
   // Compile calendar events from contracts
-  const events: CalendarEvent[] = [];
-  contracts.forEach((c) => {
-    if (c.endDate) {
-      events.push({
-        id: c.id,
-        contract: c,
-        dateStr: c.endDate,
-        type: 'EXPIRY',
-        title: `${c.title} (Expires)`
-      });
-    }
-    if (c.renewalReviewDate) {
-      events.push({
-        id: c.id,
-        contract: c,
-        dateStr: c.renewalReviewDate,
-        type: 'REVIEW',
-        title: `${c.title} (Review Notice)`
-      });
-    }
-  });
+  const events = useMemo(() => {
+    const list: CalendarEvent[] = [];
+    contracts.forEach((c) => {
+      if (c.endDate) {
+        list.push({
+          id: c.id,
+          contract: c,
+          dateStr: c.endDate,
+          type: 'EXPIRY',
+          title: `${c.title} (Expiry)`
+        });
+      }
+      if (c.renewalReviewDate) {
+        list.push({
+          id: c.id,
+          contract: c,
+          dateStr: c.renewalReviewDate,
+          type: 'REVIEW',
+          title: `${c.title} (Review Notice)`
+        });
+      }
+    });
+    return list;
+  }, [contracts]);
 
   // Calendar month math
   const year = currentDate.getFullYear();
@@ -79,101 +82,142 @@ export const CalendarPage = () => {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  const monthEventsCount = useMemo(() => {
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    return events.filter(e => e.dateStr.startsWith(prefix)).length;
+  }, [events, year, month]);
+
   if (loading) {
     return (
-      <div className="py-16 text-center text-slate-400">
-        <Clock className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-400" />
-        <p>Loading enterprise contract calendar...</p>
+      <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'inline-block', width: 36, height: 36, border: '3px solid rgba(99,102,241,0.2)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>Loading enterprise contract calendar...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <CalendarIcon className="w-7 h-7 text-indigo-400" />
-            Contract Renewal Calendar
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Track upcoming renewal review deadlines and expiration dates across the enterprise portfolio.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+            <span style={{ 
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+              width: 32, height: 32, borderRadius: '10px', 
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#818cf8'
+            }}>
+              <CalendarIcon size={18} />
+            </span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary-light)' }}>
+              Contract Schedule
+            </span>
+          </div>
+          <h1 className="page-title" style={{ fontSize: '1.85rem', fontWeight: 800 }}>Renewal & Expiry Calendar</h1>
+          <p className="page-subtitle">
+            Timeline overview of upcoming review notification windows and legal expiration deadlines.
           </p>
         </div>
 
-        {/* View Toggle */}
-        <div className="flex items-center gap-2">
-          <div className="flex rounded-lg bg-slate-900 border border-slate-800 p-1">
+        {/* View Mode Switcher */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ 
+            display: 'flex', background: 'rgba(0, 0, 0, 0.35)', 
+            border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '3px' 
+          }}>
             <button
               onClick={() => setViewMode('MONTH')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                viewMode === 'MONTH' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`btn btn-sm ${viewMode === 'MONTH' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ borderRadius: '9px', fontSize: '0.78rem', padding: '0.45rem 0.85rem' }}
             >
-              <CalendarDays className="w-3.5 h-3.5" /> Month View
+              <CalendarDays size={14} /> Month Grid
             </button>
             <button
               onClick={() => setViewMode('LIST')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                viewMode === 'LIST' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-              }`}
+              className={`btn btn-sm ${viewMode === 'LIST' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ borderRadius: '9px', fontSize: '0.78rem', padding: '0.45rem 0.85rem' }}
             >
-              <ListFilter className="w-3.5 h-3.5" /> Agenda List
+              <ListFilter size={14} /> Agenda Timeline
             </button>
           </div>
         </div>
       </div>
 
-      {/* Month Navigator Header */}
-      <div className="flex items-center justify-between bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-semibold text-slate-200">
+      {/* Month Navigator Toolbar */}
+      <div className="card" style={{ 
+        padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', 
+        justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' 
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
             {monthNames[month]} {year}
           </h2>
+          <span style={{ 
+            fontSize: '0.72rem', padding: '0.2rem 0.65rem', borderRadius: '20px', 
+            background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 700,
+            border: '1px solid rgba(99, 102, 241, 0.25)'
+          }}>
+            {monthEventsCount} Milestones
+          </span>
           <button
             onClick={todayMonth}
-            className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
           >
             Today
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <button
             onClick={prevMonth}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="btn btn-ghost btn-sm btn-icon"
+            title="Previous month"
           >
-            <ChevronLeft className="w-5 h-5" />
+            <ChevronLeft size={18} />
           </button>
           <button
             onClick={nextMonth}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="btn btn-ghost btn-sm btn-icon"
+            title="Next month"
           >
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight size={18} />
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Calendar Content */}
       {viewMode === 'MONTH' ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 overflow-x-auto">
+        <div className="card" style={{ padding: '1.25rem', overflowX: 'auto' }}>
           {/* Day of Week Headers */}
-          <div className="grid grid-cols-7 gap-2 min-w-[700px] mb-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            <div>Sun</div>
-            <div>Mon</div>
-            <div>Tue</div>
-            <div>Wed</div>
-            <div>Thu</div>
-            <div>Fri</div>
-            <div>Sat</div>
+          <div style={{ 
+            display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', 
+            minWidth: '760px', marginBottom: '0.6rem', textAlign: 'center' 
+          }}>
+            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
+              <div key={day} style={{ 
+                fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', 
+                letterSpacing: '0.08em', color: 'var(--text-tertiary)', padding: '0.35rem 0' 
+              }}>
+                {day.substring(0, 3)}
+              </div>
+            ))}
           </div>
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-2 min-w-[700px]">
+          {/* Calendar Day Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', minWidth: '760px' }}>
             {/* Blank leading slots */}
             {Array.from({ length: firstDayOfMonth }).map((_, i) => (
-              <div key={`blank-${i}`} className="min-h-[105px] rounded-xl bg-slate-950/40 border border-slate-900/60 p-2 opacity-30" />
+              <div 
+                key={`blank-${i}`} 
+                style={{ 
+                  minHeight: '115px', borderRadius: '14px', 
+                  background: 'rgba(0, 0, 0, 0.15)', border: '1px solid rgba(255, 255, 255, 0.02)',
+                  opacity: 0.35
+                }} 
+              />
             ))}
 
             {/* Days in Month */}
@@ -181,48 +225,71 @@ export const CalendarPage = () => {
               const dayNum = i + 1;
               const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
               const dayEvents = events.filter((e) => e.dateStr === dateStr);
-
               const isToday = new Date().toDateString() === new Date(year, month, dayNum).toDateString();
 
               return (
                 <div
                   key={`day-${dayNum}`}
-                  className={`min-h-[105px] rounded-xl border p-2 flex flex-col justify-between transition-colors ${
-                    isToday 
-                      ? 'bg-indigo-950/30 border-indigo-500/50' 
-                      : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700'
-                  }`}
+                  style={{
+                    minHeight: '115px', borderRadius: '14px', padding: '0.6rem',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    background: isToday 
+                      ? 'linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.08))' 
+                      : 'rgba(255, 255, 255, 0.02)',
+                    border: isToday 
+                      ? '1px solid rgba(99, 102, 241, 0.45)' 
+                      : '1px solid rgba(255, 255, 255, 0.05)',
+                    boxShadow: isToday ? '0 0 20px -4px rgba(99, 102, 241, 0.25)' : 'none',
+                    transition: 'border-color 0.2s ease, background 0.2s ease'
+                  }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${isToday ? 'text-indigo-400' : 'text-slate-400'}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ 
+                      fontSize: '0.78rem', fontWeight: isToday ? 800 : 600, 
+                      color: isToday ? '#818cf8' : 'var(--text-secondary)',
+                      width: 24, height: 24, borderRadius: '50%',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: isToday ? 'rgba(99, 102, 241, 0.25)' : 'transparent'
+                    }}>
                       {dayNum}
                     </span>
                     {dayEvents.length > 0 && (
-                      <span className="w-2 h-2 rounded-full bg-indigo-400" />
+                      <span style={{ 
+                        fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '6px',
+                        background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)', fontWeight: 700 
+                      }}>
+                        {dayEvents.length}
+                      </span>
                     )}
                   </div>
 
-                  {/* Day Events */}
-                  <div className="space-y-1 mt-1 overflow-hidden">
-                    {dayEvents.slice(0, 2).map((ev, evIdx) => (
-                      <div
-                        key={evIdx}
-                        onClick={() => navigate(`/contracts/${ev.id}`)}
-                        className={`px-1.5 py-0.5 rounded text-[10px] truncate cursor-pointer font-medium transition-opacity hover:opacity-80 ${
-                          ev.type === 'EXPIRY'
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                        }`}
-                        title={ev.title}
-                      >
-                        {ev.type === 'EXPIRY' ? '🔴 Expiry: ' : '⏱ Review: '}
-                        {ev.contract.title}
-                      </div>
-                    ))}
+                  {/* Day Events Chips */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.4rem' }}>
+                    {dayEvents.slice(0, 2).map((ev, evIdx) => {
+                      const isExpiry = ev.type === 'EXPIRY';
+                      return (
+                        <div
+                          key={evIdx}
+                          onClick={() => navigate(`/contracts/${ev.id}`)}
+                          style={{
+                            padding: '0.25rem 0.45rem', borderRadius: '7px', fontSize: '0.68rem',
+                            fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                            background: isExpiry ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            color: isExpiry ? '#fca5a5' : '#fcd34d',
+                            border: `1px solid ${isExpiry ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                            transition: 'transform 0.15s ease'
+                          }}
+                          title={ev.title}
+                        >
+                          {isExpiry ? '🔴 Expire: ' : '⏱ Review: '}
+                          {ev.contract.title}
+                        </div>
+                      );
+                    })}
                     {dayEvents.length > 2 && (
-                      <span className="text-[9px] text-slate-500 font-mono pl-1">
-                        +{dayEvents.length - 2} more
-                      </span>
+                      <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', fontWeight: 600, paddingLeft: '0.2rem' }}>
+                        +{dayEvents.length - 2} more...
+                      </div>
                     )}
                   </div>
                 </div>
@@ -232,51 +299,80 @@ export const CalendarPage = () => {
         </div>
       ) : (
         /* Agenda List View */
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-          <div className="divide-y divide-slate-800">
-            {events
-              .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
-              .map((ev, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => navigate(`/contracts/${ev.id}`)}
-                  className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-800/50 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-start sm:items-center gap-3">
-                    <div className={`p-2.5 rounded-xl shrink-0 ${
-                      ev.type === 'EXPIRY' ? 'bg-rose-500/10 text-rose-400' : 'bg-amber-500/10 text-amber-400'
-                    }`}>
-                      {ev.type === 'EXPIRY' ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                    </div>
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Chronological Contract Milestone Schedule
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+              {events.length} total milestones tracked
+            </span>
+          </div>
 
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-100 text-sm">
-                          {ev.contract.title}
-                        </span>
-                        <StatusBadge status={ev.contract.status} />
-                      </div>
-                      <div className="text-xs text-slate-400 mt-0.5">
-                        {ev.contract.contractNumber} • {ev.contract.vendorName}
-                      </div>
-                    </div>
-                  </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {events.length === 0 ? (
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                No milestones scheduled.
+              </div>
+            ) : (
+              events
+                .sort((a, b) => a.dateStr.localeCompare(b.dateStr))
+                .map((ev, idx) => {
+                  const isExpiry = ev.type === 'EXPIRY';
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => navigate(`/contracts/${ev.id}`)}
+                      style={{
+                        padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        gap: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                        cursor: 'pointer', transition: 'background 0.15s ease'
+                      }}
+                      className="hover:bg-white/[0.03]"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{
+                          width: 38, height: 38, borderRadius: '10px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: isExpiry ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                          color: isExpiry ? '#f87171' : '#fbbf24',
+                          border: `1px solid ${isExpiry ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                          flexShrink: 0
+                        }}>
+                          {isExpiry ? <AlertTriangle size={18} /> : <Clock size={18} />}
+                        </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className="text-xs font-mono font-medium text-slate-300">
-                        {formatDate(ev.dateStr)}
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                              {ev.contract.title}
+                            </span>
+                            <StatusBadge status={ev.contract.status} />
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            {ev.contract.contractNumber} • {ev.contract.vendorName}
+                          </div>
+                        </div>
                       </div>
-                      <div className={`text-[11px] font-semibold ${
-                        ev.type === 'EXPIRY' ? 'text-rose-400' : 'text-amber-400'
-                      }`}>
-                        {ev.type === 'EXPIRY' ? 'Expiration Deadline' : 'Notice Window Start'}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                            {formatDate(ev.dateStr)}
+                          </div>
+                          <div style={{ 
+                            fontSize: '0.72rem', fontWeight: 700,
+                            color: isExpiry ? '#f87171' : '#fbbf24'
+                          }}>
+                            {isExpiry ? 'Contract Expiration' : 'Renewal Notice Window'}
+                          </div>
+                        </div>
+                        <ExternalLink size={16} style={{ color: 'var(--text-tertiary)' }} />
                       </div>
                     </div>
-                    <ExternalLink className="w-4 h-4 text-slate-500" />
-                  </div>
-                </div>
-              ))}
+                  );
+                })
+            )}
           </div>
         </div>
       )}

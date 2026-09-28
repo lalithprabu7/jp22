@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FolderOpen, Search, FileText, ArrowUpRight } from 'lucide-react';
 import { getAllDocuments } from '../services/contractService';
@@ -21,72 +21,94 @@ export default function DocumentsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredDocs = documents.filter(doc => {
-    const matchesType = selectedType === 'ALL' || doc.type === selectedType;
-    const matchesSearch = 
-      doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (doc.contractName && doc.contractName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (doc.contractNumber && doc.contractNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (doc.uploadedBy && doc.uploadedBy.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesType && matchesSearch;
-  });
+  const filteredDocs = useMemo(() => {
+    return documents.filter(doc => {
+      const matchesType = selectedType === 'ALL' || doc.type === selectedType;
+      const matchesSearch = 
+        doc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (doc.contractName && doc.contractName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (doc.contractNumber && doc.contractNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (doc.uploadedBy && doc.uploadedBy.toLowerCase().includes(searchQuery.toLowerCase()));
+      return matchesType && matchesSearch;
+    });
+  }, [documents, selectedType, searchQuery]);
 
-  const getTypeBadgeClass = (type: string) => {
+  const getTypeStyle = (type: string) => {
     switch (type) {
-      case 'CONTRACT': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-      case 'AGREEMENT': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'INVOICE': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'AMENDMENT': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-      case 'COMPLIANCE': return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20';
-      default: return 'bg-slate-800 text-slate-300 border-slate-700';
+      case 'CONTRACT':
+        return { bg: 'rgba(99, 102, 241, 0.15)', text: '#818cf8', border: 'rgba(99, 102, 241, 0.3)' };
+      case 'AGREEMENT':
+        return { bg: 'rgba(16, 185, 129, 0.15)', text: '#10b981', border: 'rgba(16, 185, 129, 0.3)' };
+      case 'INVOICE':
+        return { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' };
+      case 'AMENDMENT':
+        return { bg: 'rgba(168, 85, 247, 0.15)', text: '#c084fc', border: 'rgba(168, 85, 247, 0.3)' };
+      case 'COMPLIANCE':
+        return { bg: 'rgba(6, 182, 212, 0.15)', text: '#22d3ee', border: 'rgba(6, 182, 212, 0.3)' };
+      default:
+        return { bg: 'rgba(255, 255, 255, 0.08)', text: 'var(--text-secondary)', border: 'rgba(255, 255, 255, 0.1)' };
     }
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2.5">
-            <FolderOpen className="w-7 h-7 text-indigo-400" />
-            Contract Document Repository
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Centralized document storage, amendments, invoices, and compliance references.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+            <span style={{ 
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+              width: 32, height: 32, borderRadius: '10px', 
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#818cf8'
+            }}>
+              <FolderOpen size={18} />
+            </span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary-light)' }}>
+              Document Vault
+            </span>
+          </div>
+          <h1 className="page-title" style={{ fontSize: '1.85rem', fontWeight: 800 }}>Contract Document Repository</h1>
+          <p className="page-subtitle">
+            Centralized document references, counterparty execution copies, invoices, addendums, and compliance proofs.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300 font-mono">
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ 
+            fontSize: '0.78rem', padding: '0.35rem 0.85rem', borderRadius: '10px', 
+            background: 'rgba(255, 255, 255, 0.04)', color: 'var(--text-secondary)', 
+            border: '1px solid rgba(255, 255, 255, 0.08)', fontWeight: 600, fontFamily: 'monospace'
+          }}>
             {documents.length} Total Documents
           </span>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 flex flex-col md:flex-row gap-4 justify-between items-center">
+      <div className="card" style={{ padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
         {/* Search Input */}
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
           <input
             type="text"
-            placeholder="Search documents or contracts..."
+            placeholder="Search documents by title, contract name, or author..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-950/60 border border-slate-800 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
+            className="form-input"
+            style={{ paddingLeft: '2.5rem', background: 'rgba(0, 0, 0, 0.25)', borderRadius: '12px' }}
           />
         </div>
 
         {/* Type Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
           {DOC_TYPES.map(type => (
             <button
               key={type}
               onClick={() => setSelectedType(type)}
-              className={`px-3 py-1 text-xs font-semibold rounded-lg transition-all ${
-                selectedType === type
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                  : 'bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-              }`}
+              className={`btn btn-sm ${selectedType === type ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ borderRadius: '8px', fontSize: '0.72rem', padding: '0.3rem 0.65rem' }}
             >
               {type}
             </button>
@@ -96,80 +118,120 @@ export default function DocumentsPage() {
 
       {/* Documents Table */}
       {loading ? (
-        <div className="text-center py-16 text-slate-400 text-sm">
-          Loading document records...
+        <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'inline-block', width: 36, height: 36, border: '3px solid rgba(99,102,241,0.2)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>Loading document records...</p>
         </div>
       ) : filteredDocs.length === 0 ? (
-        <div className="text-center py-16 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400">
-          <FolderOpen className="w-10 h-10 text-slate-600 mx-auto mb-2" />
-          <h3 className="text-base font-semibold text-slate-300">No documents found</h3>
-          <p className="text-xs text-slate-500 mt-1">Try adjusting your search criteria or type filter.</p>
+        <div className="empty-state">
+          <div className="empty-state-icon"><FolderOpen size={28} /></div>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>No documents found</h3>
+          <p style={{ color: 'var(--text-secondary)', maxWidth: 400, margin: '0.5rem auto 1.25rem' }}>
+            No documents matched your filter or search query. Try switching to "ALL" or adjusting your keywords.
+          </p>
         </div>
       ) : (
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl overflow-hidden shadow-xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ width: '100%', margin: 0 }}>
               <thead>
-                <tr className="border-b border-slate-800 text-xs font-semibold text-slate-400 uppercase tracking-wider bg-slate-950/40">
-                  <th className="py-3.5 px-4">Document</th>
-                  <th className="py-3.5 px-4">Type</th>
-                  <th className="py-3.5 px-4">Contract</th>
-                  <th className="py-3.5 px-4">Version</th>
-                  <th className="py-3.5 px-4">Uploaded By</th>
-                  <th className="py-3.5 px-4 text-right">Action</th>
+                <tr>
+                  <th style={{ paddingLeft: '1.25rem' }}>Document Name</th>
+                  <th>Classification</th>
+                  <th>Associated Contract</th>
+                  <th>Version</th>
+                  <th>Uploaded By</th>
+                  <th style={{ textAlign: 'right', paddingRight: '1.25rem' }}>Access Link</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredDocs.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-800/30 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
-                          <FileText className="w-4 h-4" />
+              <tbody>
+                {filteredDocs.map((doc) => {
+                  const style = getTypeStyle(doc.type);
+                  return (
+                    <tr key={doc.id}>
+                      <td style={{ paddingLeft: '1.25rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <div style={{
+                            width: 36, height: 36, borderRadius: '10px',
+                            background: style.bg, color: style.text, border: `1px solid ${style.border}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <FileText size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                              {doc.name}
+                            </div>
+                            {doc.description && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.1rem' }}>
+                                {doc.description}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <div className="font-medium text-slate-200">{doc.name}</div>
-                          {doc.description && (
-                            <div className="text-xs text-slate-400 line-clamp-1">{doc.description}</div>
-                          )}
+                      </td>
+
+                      <td>
+                        <span style={{ 
+                          fontSize: '0.7rem', padding: '0.2rem 0.6rem', borderRadius: '6px', 
+                          background: style.bg, color: style.text, border: `1px solid ${style.border}`,
+                          fontWeight: 700, letterSpacing: '0.04em'
+                        }}>
+                          {doc.type}
+                        </span>
+                      </td>
+
+                      <td>
+                        <button
+                          onClick={() => navigate(`/contracts/${doc.contractId}`)}
+                          style={{
+                            background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                            color: 'var(--color-primary-light)', fontWeight: 600, fontSize: '0.85rem',
+                            textAlign: 'left', display: 'block'
+                          }}
+                          className="hover:underline"
+                        >
+                          {doc.contractName || `Contract #${doc.contractId}`}
+                        </button>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                          {doc.contractNumber}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span style={{ 
+                          fontSize: '0.75rem', fontFamily: 'monospace', fontWeight: 700, 
+                          color: 'var(--text-secondary)', background: 'rgba(255, 255, 255, 0.04)',
+                          padding: '0.15rem 0.5rem', borderRadius: '4px'
+                        }}>
+                          v{doc.version || '1.0'}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {doc.uploadedBy || 'Admin'}
                         </div>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className={`px-2 py-0.5 text-xs font-medium rounded-md border ${getTypeBadgeClass(doc.type)}`}>
-                        {doc.type}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <button
-                        onClick={() => navigate(`/contracts/${doc.contractId}`)}
-                        className="text-xs text-indigo-400 hover:text-indigo-300 font-medium hover:underline text-left block"
-                      >
-                        {doc.contractName || `Contract #${doc.contractId}`}
-                      </button>
-                      <span className="text-[11px] text-slate-500 font-mono">
-                        {doc.contractNumber}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-xs font-mono text-slate-400">
-                      v{doc.version || '1.0'}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="text-xs text-slate-300">{doc.uploadedBy || 'Admin'}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{formatDateTime(doc.uploadedAt)}</div>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <a
-                        href={doc.reference}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors border border-slate-700/60"
-                      >
-                        Open <ArrowUpRight size={12} />
-                      </a>
-                    </td>
-                  </tr>
-                ))}
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
+                          {formatDateTime(doc.uploadedAt)}
+                        </div>
+                      </td>
+
+                      <td style={{ textAlign: 'right', paddingRight: '1.25rem' }}>
+                        <a
+                          href={doc.reference}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem' }}
+                        >
+                          Open <ArrowUpRight size={13} />
+                        </a>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

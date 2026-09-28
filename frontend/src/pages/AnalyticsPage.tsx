@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { 
   BarChart2, TrendingUp, DollarSign, Clock, ShieldAlert, 
-  Download, RefreshCw
+  Download, PieChart as PieIcon
 } from 'lucide-react';
 import { 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, 
-  PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, Legend, CartesianGrid 
 } from 'recharts';
 import { 
   getAnalyticsStatus, getAnalyticsExpiry, getAnalyticsVendors, 
@@ -69,117 +69,171 @@ export const AnalyticsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-slate-400">
-        <RefreshCw className="w-8 h-8 animate-spin text-indigo-400 mb-3" />
-        <p className="text-sm font-medium">Crunching portfolio contract data...</p>
+      <div style={{ textAlign: 'center', padding: '5rem 1rem', color: 'var(--text-secondary)' }}>
+        <div style={{ display: 'inline-block', width: 36, height: 36, border: '3px solid rgba(99,102,241,0.2)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ marginTop: '1rem', fontSize: '0.9rem' }}>Crunching real-time contract intelligence...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem', paddingBottom: '3rem' }}>
       {/* Header & Export Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
-            <BarChart2 className="w-7 h-7 text-indigo-400" />
-            Executive Contract Analytics
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">
-            Real-time financial exposure, risk classification, and expiration forecasting across active vendors.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+            <span style={{ 
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', 
+              width: 32, height: 32, borderRadius: '10px', 
+              background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2))',
+              border: '1px solid rgba(99, 102, 241, 0.3)',
+              color: '#818cf8'
+            }}>
+              <BarChart2 size={18} />
+            </span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary-light)' }}>
+              Executive Intelligence
+            </span>
+          </div>
+          <h1 className="page-title" style={{ fontSize: '1.85rem', fontWeight: 800 }}>Portfolio Analytics</h1>
+          <p className="page-subtitle">
+            Financial exposure modeling, expiration forecasts, risk tier distribution, and vendor concentration metrics.
           </p>
         </div>
 
-        {/* Export Buttons */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Export Data Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <a
             href={getExportContractsUrl()}
             download
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.78rem' }}
           >
-            <Download className="w-3.5 h-3.5" /> Contracts CSV
+            <Download size={14} /> Contracts CSV
           </a>
           <a
             href={getExportRenewalsUrl()}
             download
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.78rem' }}
           >
-            <Download className="w-3.5 h-3.5" /> Renewals CSV
+            <Download size={14} /> Renewals CSV
           </a>
           <a
             href={getExportRisksUrl()}
             download
-            className="btn-secondary text-xs flex items-center gap-1.5"
+            className="btn btn-secondary btn-sm"
+            style={{ fontSize: '0.78rem' }}
           >
-            <Download className="w-3.5 h-3.5" /> Risk Report CSV
+            <Download size={14} /> Risk Audit CSV
           </a>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards Strip */}
       {metrics && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '1rem' }}>
           <div className="stat-card">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">Total Portfolio Value</span>
-              <DollarSign className="w-5 h-5 text-emerald-400" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Total Portfolio Value</span>
+              <span style={{ 
+                width: 32, height: 32, borderRadius: '8px', 
+                background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+                <DollarSign size={16} />
+              </span>
             </div>
-            <div className="mt-2 text-2xl font-bold text-slate-100">
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.4rem', letterSpacing: '-0.02em' }}>
               {formatCurrency(metrics.totalContractValue)}
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Across {metrics.totalContracts} managed vendor contracts
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+              Across {metrics.totalContracts} managed vendor agreements
             </div>
           </div>
 
           <div className="stat-card">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">Active Commitments</span>
-              <TrendingUp className="w-5 h-5 text-cyan-400" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active Value At Play</span>
+              <span style={{ 
+                width: 32, height: 32, borderRadius: '8px', 
+                background: 'rgba(6, 182, 212, 0.15)', color: '#06b6d4', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+                <TrendingUp size={16} />
+              </span>
             </div>
-            <div className="mt-2 text-2xl font-bold text-cyan-400">
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#38bdf8', marginTop: '0.4rem', letterSpacing: '-0.02em' }}>
               {formatCurrency(metrics.activeContractValue)}
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Live contracts & active review windows
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+              Live ongoing counterparty commitments
             </div>
           </div>
 
           <div className="stat-card">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">Historical Renewal Rate</span>
-              <Clock className="w-5 h-5 text-teal-400" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Renewal Rate</span>
+              <span style={{ 
+                width: 32, height: 32, borderRadius: '8px', 
+                background: 'rgba(129, 140, 248, 0.15)', color: '#818cf8', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+                <Clock size={16} />
+              </span>
             </div>
-            <div className="mt-2 text-2xl font-bold text-teal-400">
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#818cf8', marginTop: '0.4rem', letterSpacing: '-0.02em' }}>
               {metrics.renewalRatePercentage}%
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              Avg duration: ~{metrics.avgDurationMonths} months
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+              Avg agreement term: ~{metrics.avgDurationMonths} months
             </div>
           </div>
 
           <div className="stat-card">
-            <div className="flex items-center justify-between text-slate-400">
-              <span className="text-xs font-semibold uppercase tracking-wider">Elevated Risk Contracts</span>
-              <ShieldAlert className="w-5 h-5 text-rose-400" />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-secondary)' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>High Risk Flags</span>
+              <span style={{ 
+                width: 32, height: 32, borderRadius: '8px', 
+                background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', 
+                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+                <ShieldAlert size={16} />
+              </span>
             </div>
-            <div className="mt-2 text-2xl font-bold text-rose-400">
+            <div style={{ fontSize: '1.85rem', fontWeight: 800, color: '#f87171', marginTop: '0.4rem', letterSpacing: '-0.02em' }}>
               {metrics.criticalCount + metrics.highRiskCount}
             </div>
-            <div className="mt-1 text-xs text-slate-400">
-              {metrics.criticalCount} Critical • {metrics.highRiskCount} High Risk
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+              {metrics.criticalCount} Critical &bull; {metrics.highRiskCount} High urgency
             </div>
           </div>
         </div>
       )}
 
       {/* Row 1 Charts: Status & Risk Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.25rem' }}>
         {/* Status Breakdown Pie */}
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-1">Contract Status Distribution</h2>
-          <p className="text-xs text-slate-400 mb-4">Breakdown of contract counts across lifecycle stages</p>
-          <div className="h-64">
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Lifecycle Status Distribution
+              </h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Active vs Renewing vs Expired contract volume
+              </p>
+            </div>
+            <span style={{ 
+              width: 30, height: 30, borderRadius: '8px', 
+              background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' 
+            }}>
+              <PieIcon size={16} />
+            </span>
+          </div>
+
+          <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -188,17 +242,23 @@ export const AnalyticsPage = () => {
                   nameKey="status"
                   cx="50%"
                   cy="50%"
-                  outerRadius={85}
-                  innerRadius={45}
-                  paddingAngle={3}
+                  outerRadius={95}
+                  innerRadius={55}
+                  paddingAngle={4}
                   label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} (${((percent || 0) * 100).toFixed(0)}%)`}
                 >
                   {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#6366F1'} />
+                    <Cell key={`cell-${index}`} fill={STATUS_COLORS[entry.status] || '#6366F1'} stroke="rgba(0,0,0,0.5)" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    borderColor: 'rgba(99, 102, 241, 0.3)', 
+                    borderRadius: '12px', color: '#f8fafc',
+                    boxShadow: '0 12px 24px -4px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -206,10 +266,26 @@ export const AnalyticsPage = () => {
         </div>
 
         {/* Risk Distribution Donut */}
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-1">Renewal Risk Tier Breakdown</h2>
-          <p className="text-xs text-slate-400 mb-4">Portfolio contracts categorized by automated risk engine</p>
-          <div className="h-64">
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Automated Risk Tier Breakdown
+              </h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Classification based on expiry proximity & value exposure
+              </p>
+            </div>
+            <span style={{ 
+              width: 30, height: 30, borderRadius: '8px', 
+              background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' 
+            }}>
+              <ShieldAlert size={16} />
+            </span>
+          </div>
+
+          <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -218,17 +294,23 @@ export const AnalyticsPage = () => {
                   nameKey="riskLevel"
                   cx="50%"
                   cy="50%"
-                  outerRadius={85}
-                  innerRadius={45}
-                  paddingAngle={3}
+                  outerRadius={95}
+                  innerRadius={55}
+                  paddingAngle={4}
                   label={({ name, value }: { name?: string; value?: number }) => `${name || ''}: ${value || 0}`}
                 >
                   {riskData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.riskLevel] || '#6366F1'} />
+                    <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.riskLevel] || '#6366F1'} stroke="rgba(0,0,0,0.5)" strokeWidth={2} />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    borderColor: 'rgba(99, 102, 241, 0.3)', 
+                    borderRadius: '12px', color: '#f8fafc',
+                    boxShadow: '0 12px 24px -4px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 />
                 <Legend />
               </PieChart>
@@ -238,39 +320,97 @@ export const AnalyticsPage = () => {
       </div>
 
       {/* Row 2 Charts: Expiration Forecast & Vendor Spend */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.25rem' }}>
         {/* Monthly Expiry Forecast */}
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-1">12-Month Forward Expiration Forecast</h2>
-          <p className="text-xs text-slate-400 mb-4">Number of contracts expiring each month</p>
-          <div className="h-64">
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                12-Month Forward Expiration Runway
+              </h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Forecasted contract maturities by calendar month
+              </p>
+            </div>
+            <span style={{ 
+              width: 30, height: 30, borderRadius: '8px', 
+              background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' 
+            }}>
+              <Clock size={16} />
+            </span>
+          </div>
+
+          <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={expiryData}>
-                <XAxis dataKey="month" stroke="#64748B" fontSize={11} />
-                <YAxis stroke="#64748B" fontSize={11} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="month" stroke="#64748B" fontSize={11} tickLine={false} />
+                <YAxis stroke="#64748B" fontSize={11} allowDecimals={false} tickLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    borderColor: 'rgba(99, 102, 241, 0.3)', 
+                    borderRadius: '12px', color: '#f8fafc',
+                    boxShadow: '0 12px 24px -4px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 />
-                <Bar dataKey="count" fill="#6366F1" radius={[4, 4, 0, 0]} name="Expiring Contracts" />
+                <Bar dataKey="count" fill="url(#blueIndigoGradient)" radius={[6, 6, 0, 0]} name="Expiring Contracts" />
+                <defs>
+                  <linearGradient id="blueIndigoGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#4f46e5" />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Top Vendors by Commitment */}
-        <div className="card p-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-1">Top Vendor Financial Exposure</h2>
-          <p className="text-xs text-slate-400 mb-4">Total committed financial value by primary vendor</p>
-          <div className="h-64">
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                Vendor Concentration & Exposure
+              </h2>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Committed financial value allocated by primary counterparty
+              </p>
+            </div>
+            <span style={{ 
+              width: 30, height: 30, borderRadius: '8px', 
+              background: 'rgba(255, 255, 255, 0.05)', display: 'flex', 
+              alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' 
+            }}>
+              <DollarSign size={16} />
+            </span>
+          </div>
+
+          <div style={{ height: 260 }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={vendorData} layout="vertical">
-                <XAxis type="number" stroke="#64748B" fontSize={10} tickFormatter={(v: number) => `₹${(v / 100000).toFixed(0)}L`} />
-                <YAxis dataKey="vendorName" type="category" stroke="#64748B" fontSize={11} width={100} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                <XAxis type="number" stroke="#64748B" fontSize={10} tickFormatter={(v: number) => `₹${(v / 100000).toFixed(0)}L`} tickLine={false} />
+                <YAxis dataKey="vendorName" type="category" stroke="#64748B" fontSize={11} width={110} tickLine={false} />
                 <Tooltip
                   formatter={(val: any) => formatCurrency(Number(val || 0))}
-                  contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '0.75rem', color: '#f8fafc' }}
+                  contentStyle={{ 
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                    borderColor: 'rgba(16, 185, 129, 0.3)', 
+                    borderRadius: '12px', color: '#f8fafc',
+                    boxShadow: '0 12px 24px -4px rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(8px)'
+                  }}
                 />
-                <Bar dataKey="totalValue" fill="#10B981" radius={[0, 4, 4, 0]} name="Committed Value" />
+                <Bar dataKey="totalValue" fill="url(#emeraldTealGradient)" radius={[0, 6, 6, 0]} name="Committed Value" />
+                <defs>
+                  <linearGradient id="emeraldTealGradient" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#059669" />
+                    <stop offset="100%" stopColor="#10b981" />
+                  </linearGradient>
+                </defs>
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { Sparkles } from 'lucide-react';
 
 import Sidebar from './components/Sidebar';
+import TopNavbar from './components/TopNavbar';
 import CopilotDrawer from './components/CopilotDrawer';
 import CommandPalette from './components/CommandPalette';
 
@@ -84,26 +85,33 @@ export default function App() {
         />
 
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/contracts" element={<ContractsPage />} />
-            <Route path="/contracts/:id" element={<ContractDetailPage />} />
-            <Route path="/renewals" element={<RenewalsPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/vendors" element={<VendorsPage />} />
-            <Route path="/documents" element={<DocumentsPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/settings" element={
-              <div className="page-header">
-                <div>
-                  <h1 className="page-title">⚙️ Settings</h1>
-                  <p className="page-subtitle">Application configuration coming soon.</p>
+          <TopNavbar
+            onToggleSidebar={() => setSidebarCollapsed(p => !p)}
+            unreadCount={unreadCount}
+            onOpenSearch={() => setIsSearchOpen(true)}
+            onOpenCopilot={() => setCopilotOpen(true)}
+          />
+
+          <div className="page-container">
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/contracts" element={<ContractsPage />} />
+              <Route path="/contracts/:id" element={<ContractDetailPage />} />
+              <Route path="/renewals" element={<RenewalsPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/vendors" element={<VendorsPage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/notifications" element={<NotificationsPage />} />
+              <Route path="/settings" element={
+                <div className="card p-8 text-center max-w-lg mx-auto my-12">
+                  <h1 className="text-xl font-bold text-slate-100 mb-2">⚙️ Enterprise Platform Settings</h1>
+                  <p className="text-sm text-slate-400">Manage tenant profiles, notification dispatchers, API keys, and RBAC policies.</p>
                 </div>
-              </div>
-            } />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </div>
         </main>
 
         {/* Global Search Command Palette (Ctrl+K) */}

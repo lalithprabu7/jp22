@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, XCircle, AlertTriangle, Clock, ArrowRight } from 'lucide-react';
-import { getRenewalDueContracts, getExpiringContracts, renewContract, terminateContract } from '../services/contractService';
+import { 
+  RefreshCw, XCircle, Clock, 
+  Building2, CheckCircle2
+} from 'lucide-react';
+import { 
+  getRenewalDueContracts, getExpiringContracts, renewContract, terminateContract 
+} from '../services/contractService';
 import type { Contract } from '../types';
 import StatusBadge from '../components/StatusBadge';
-import { formatDate, getDaysLabel, getUrgencyColor, getUrgencyLabel } from '../utils/formatters';
+import { formatDate, getDaysLabel, getUrgencyColor, formatCurrency } from '../utils/formatters';
 import toast from 'react-hot-toast';
 
 export default function RenewalsPage() {
@@ -12,6 +17,8 @@ export default function RenewalsPage() {
   const [expiring, setExpiring] = useState<Contract[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<number | null>(null);
+
+  // Action Modals
   const [renewModal, setRenewModal] = useState<Contract | null>(null);
   const [termModal, setTermModal] = useState<Contract | null>(null);
   const [renewDate, setRenewDate] = useState('');
@@ -31,14 +38,23 @@ export default function RenewalsPage() {
   useEffect(() => { fetchData(); }, []);
 
   const handleRenew = async () => {
-    if (!renewModal || !renewDate) { toast.error('Please select a new end date.'); return; }
+    if (!renewModal || !renewDate) { 
+      toast.error('Please select a new end date.'); 
+      return; 
+    }
     setProcessing(renewModal.id);
     try {
       await renewContract(renewModal.id, { newEndDate: renewDate, remarks });
-      toast.success('Contract renewed successfully.');
+      toast.success('Contract successfully renewed!');
       setRenewModal(null);
+      setRenewDate('');
+      setRemarks('');
       fetchData();
-    } finally { setProcessing(null); }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to renew contract');
+    } finally { 
+      setProcessing(null); 
+    }
   };
 
   const handleTerminate = async () => {
@@ -46,157 +62,184 @@ export default function RenewalsPage() {
     setProcessing(termModal.id);
     try {
       await terminateContract(termModal.id, { remarks });
-      toast.success('Contract terminated. It will no longer appear in renewal reminders.');
+      toast.success('Contract terminated and removed from active alert queues.');
       setTermModal(null);
+      setRemarks('');
       fetchData();
-    } finally { setProcessing(null); }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to terminate contract');
+    } finally { 
+      setProcessing(null); 
+    }
   };
 
-  if (loading) return (
-    <div style={{ color: 'var(--text-secondary)', padding: '2rem' }}>Loading renewals…</div>
-  );
+  if (loading) {
+    return (
+      <div className="py-20 text-center text-slate-400 text-sm">
+        <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-400" />
+        <p>Loading Renewal Command Center...</p>
+      </div>
+    );
+  }
 
   const allUrgent = [...renewalDue, ...expiring].sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
+  const criticalCount = allUrgent.filter(c => c.daysUntilExpiry <= 7).length;
+  const urgentCount = allUrgent.filter(c => c.daysUntilExpiry > 7 && c.daysUntilExpiry <= 15).length;
+  const attentionCount = allUrgent.filter(c => c.daysUntilExpiry > 15).length;
 
   return (
-    <div>
-      <div className="page-header">
+    <div className="space-y-6 pb-12">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="page-title">⚡ Renewal Command Center</h1>
-          <p className="page-subtitle">
-            {renewalDue.length} contracts require immediate renewal decision
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 flex items-center gap-2.5">
+            <RefreshCw className="w-7 h-7 text-amber-400 animate-spin-slow" />
+            Renewal Command Center
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-1">
+            Prioritized decision center to evaluate renegotiations, renewals, and terminations.
           </p>
         </div>
-      </div>
-
-      {/* Summary Strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-        <div className="card card-sm" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-danger)', marginBottom: '0.3rem' }}>In Renewal Window</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-danger)' }}>{renewalDue.length}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Require decision now</div>
-        </div>
-        <div className="card card-sm" style={{ borderColor: 'rgba(245,158,11,0.3)' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-warning)', marginBottom: '0.3rem' }}>Expiring Soon</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-warning)' }}>{expiring.length}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Within 30 days</div>
-        </div>
-        <div className="card card-sm" style={{ borderColor: 'rgba(16,185,129,0.3)' }}>
-          <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', color: 'var(--color-success)', marginBottom: '0.3rem' }}>Total Urgent</div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-success)' }}>{allUrgent.length}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Contracts needing attention</div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 font-semibold font-mono">
+            {allUrgent.length} Active Targets
+          </span>
         </div>
       </div>
 
-      {allUrgent.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon" style={{ background: 'rgba(16,185,129,0.1)', color: 'var(--color-success)' }}>
-            <RefreshCw size={32} />
+      {/* Summary KPI Strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="card p-5 border-rose-500/25 bg-gradient-to-br from-rose-500/10 via-slate-900 to-slate-900">
+          <div className="text-xs font-bold text-rose-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> Critical (&le;7 Days)
           </div>
-          <h3>All Clear!</h3>
-          <p>No contracts require renewal attention right now. Check back daily for updates.</p>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/contracts')}>
+          <div className="text-3xl font-extrabold text-rose-300 font-mono mt-1">{criticalCount}</div>
+          <div className="text-xs text-slate-400 mt-1">Imminent deadline expiration</div>
+        </div>
+
+        <div className="card p-5 border-amber-500/25 bg-gradient-to-br from-amber-500/10 via-slate-900 to-slate-900">
+          <div className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <Clock size={13} /> Urgent (8–15 Days)
+          </div>
+          <div className="text-3xl font-extrabold text-amber-300 font-mono mt-1">{urgentCount}</div>
+          <div className="text-xs text-slate-400 mt-1">Active review window open</div>
+        </div>
+
+        <div className="card p-5 border-blue-500/25 bg-gradient-to-br from-blue-500/10 via-slate-900 to-slate-900">
+          <div className="text-xs font-bold text-blue-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+            <CheckCircle2 size={13} /> Attention (16–30 Days)
+          </div>
+          <div className="text-3xl font-extrabold text-blue-300 font-mono mt-1">{attentionCount}</div>
+          <div className="text-xs text-slate-400 mt-1">Upcoming notice milestones</div>
+        </div>
+      </div>
+
+      {/* Contract Queue */}
+      {allUrgent.length === 0 ? (
+        <div className="text-center py-20 bg-slate-900/40 rounded-2xl border border-slate-800 text-slate-400">
+          <div className="w-14 h-14 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+            <CheckCircle2 size={30} />
+          </div>
+          <h3 className="text-lg font-bold text-slate-200">Zero Pending Renewals!</h3>
+          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            All enterprise vendor contracts are on healthy runways with zero renewal actions required today.
+          </p>
+          <button className="btn btn-secondary btn-sm mt-4" onClick={() => navigate('/contracts')}>
             View All Contracts
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {allUrgent.map(contract => {
-            const urgencyColor = getUrgencyColor(contract.daysUntilExpiry);
-            const urgencyLabel = getUrgencyLabel(contract.daysUntilExpiry);
-            const isRenewalDue = contract.status === 'RENEWAL_DUE';
+        <div className="space-y-4">
+          {allUrgent.map(c => {
+            const urgency = getUrgencyColor(c.daysUntilExpiry);
+            const isProcessing = processing === c.id;
 
             return (
-              <div
-                key={contract.id}
-                className="card"
-                style={{ borderColor: urgencyColor + '44', borderLeftWidth: 3, borderLeftColor: urgencyColor }}
+              <div 
+                key={c.id} 
+                className="card p-5 border-slate-800 hover:border-slate-700/80 bg-slate-900/70 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-5 group"
               >
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1.5rem', alignItems: 'center' }}>
-                  <div>
-                    <div className="flex items-center gap-2" style={{ marginBottom: '0.5rem' }}>
-                      <AlertTriangle size={16} color={urgencyColor} />
-                      <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>{contract.title}</h3>
-                      <StatusBadge status={contract.status} />
-                      <span style={{
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: 9999,
-                        fontSize: '0.65rem',
-                        fontWeight: 700,
-                        background: urgencyColor + '22',
-                        color: urgencyColor,
-                        textTransform: 'uppercase'
-                      }}>
-                        {urgencyLabel}
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Vendor</div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{contract.vendorName}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Expires</div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{formatDate(contract.endDate)}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Review Date</div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{formatDate(contract.renewalReviewDate)}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: 600 }}>Notice Period</div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{contract.renewalNoticeDays} days</div>
-                      </div>
-                    </div>
-
-                    {/* Countdown */}
-                    <div style={{ marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Clock size={14} color={urgencyColor} />
-                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: urgencyColor }}>
-                        {getDaysLabel(contract.daysUntilExpiry)} remaining
-                      </span>
-                      {isRenewalDue && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-warning)', fontStyle: 'italic' }}>
-                          · Renewal deadline approaching
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="progress-bar" style={{ marginTop: '0.5rem', maxWidth: 300 }}>
-                      <div
-                        className="progress-fill"
-                        style={{
-                          width: `${Math.max(2, Math.min(100, ((30 - Math.max(0, contract.daysUntilExpiry)) / 30) * 100))}%`,
-                          background: urgencyColor,
-                        }}
-                      />
-                    </div>
+                {/* Left: Info */}
+                <div className="space-y-2 flex-1">
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <span className="font-bold text-base text-slate-100 group-hover:text-indigo-400 transition-colors cursor-pointer" onClick={() => navigate(`/contracts/${c.id}`)}>
+                      {c.title}
+                    </span>
+                    <span className="text-xs font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                      {c.contractNumber}
+                    </span>
+                    <StatusBadge status={c.status} />
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                      c.riskLevel === 'CRITICAL' ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' :
+                      c.riskLevel === 'HIGH' ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' :
+                      c.riskLevel === 'MEDIUM' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' :
+                      'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    }`}>
+                      Risk: {c.riskLevel} ({c.riskScore})
+                    </span>
                   </div>
 
-                  {/* Actions */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: 120 }}>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => navigate(`/contracts/${contract.id}`)}
-                    >
-                      <ArrowRight size={14} /> Review
-                    </button>
-                    <button
-                      className="btn btn-success btn-sm"
-                      onClick={() => { setRenewModal(contract); setRenewDate(''); setRemarks(''); }}
-                      disabled={contract.status === 'TERMINATED'}
-                    >
-                      <RefreshCw size={14} /> Renew
-                    </button>
-                    <button
-                      className="btn btn-danger btn-sm"
-                      onClick={() => { setTermModal(contract); setRemarks(''); }}
-                      disabled={contract.status === 'TERMINATED'}
-                    >
-                      <XCircle size={14} /> Terminate
-                    </button>
+                  <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-400">
+                    <div className="flex items-center gap-1 text-slate-300">
+                      <Building2 size={13} className="text-slate-500" />
+                      <span>{c.vendorName}</span>
+                    </div>
+                    <div>
+                      <span>Expires: </span>
+                      <strong className="text-slate-200 font-mono">{formatDate(c.endDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Notice Required: </span>
+                      <strong className="text-slate-200">{c.renewalNoticeDays} days</strong>
+                    </div>
+                    <div>
+                      <span>Review Began: </span>
+                      <strong className="text-amber-400 font-mono">{formatDate(c.renewalReviewDate)}</strong>
+                    </div>
+                    <div>
+                      <span>Committed Value: </span>
+                      <strong className="text-slate-200 font-mono">{formatCurrency(c.contractValue, c.currency)}</strong>
+                    </div>
                   </div>
+                </div>
+
+                {/* Center: Countdown indicator */}
+                <div className="shrink-0 px-4 py-2 rounded-xl bg-slate-950/80 border border-slate-800 text-center min-w-[130px]">
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">Runway</div>
+                  <div className="text-base font-extrabold font-mono mt-0.5" style={{ color: urgency }}>
+                    {getDaysLabel(c.daysUntilExpiry)}
+                  </div>
+                </div>
+
+                {/* Right: Actions */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => navigate(`/contracts/${c.id}`)}
+                  >
+                    Inspect
+                  </button>
+                  <button
+                    className="btn btn-success btn-sm flex items-center gap-1 shadow-sm"
+                    onClick={() => {
+                      setRenewModal(c);
+                      setRenewDate('');
+                      setRemarks('');
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <RefreshCw size={13} /> Renew
+                  </button>
+                  <button
+                    className="btn btn-danger btn-sm flex items-center gap-1 shadow-sm"
+                    onClick={() => {
+                      setTermModal(c);
+                      setRemarks('');
+                    }}
+                    disabled={isProcessing}
+                  >
+                    <XCircle size={13} /> Terminate
+                  </button>
                 </div>
               </div>
             );
@@ -209,26 +252,46 @@ export default function RenewalsPage() {
         <div className="modal-overlay" onClick={() => setRenewModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">🔄 Renew Contract</h3>
+              <h3 className="modal-title">🔄 Execute Contract Renewal</h3>
             </div>
-            <div className="modal-body">
-              <p style={{ color: 'var(--text-secondary)' }}>
-                Renewing <strong>{renewModal.title}</strong>. Current end date: <strong>{formatDate(renewModal.endDate)}</strong>.
+            <div className="modal-body space-y-4">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Renewing <strong>{renewModal.title}</strong> (#{renewModal.contractNumber}). 
+                Current expiry: <span className="font-mono text-slate-200">{formatDate(renewModal.endDate)}</span>.
               </p>
+
               <div className="form-group">
                 <label className="form-label">New End Date <span className="required">*</span></label>
-                <input type="date" className="form-input" value={renewDate} onChange={e => setRenewDate(e.target.value)} min={renewModal.endDate} />
-                <p className="form-hint">Must be after {formatDate(renewModal.endDate)}</p>
+                <input
+                  type="date"
+                  className="form-input"
+                  min={renewModal.endDate}
+                  value={renewDate}
+                  onChange={e => setRenewDate(e.target.value)}
+                  required
+                />
               </div>
+
               <div className="form-group">
-                <label className="form-label">Remarks</label>
-                <textarea className="form-textarea" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Notes about this renewal…" />
+                <label className="form-label">Negotiated Terms / Renewal Remarks</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="e.g. Extended for 12 months with locked tier pricing."
+                  value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                />
               </div>
             </div>
+
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setRenewModal(null)}>Cancel</button>
-              <button className="btn btn-success" onClick={handleRenew} disabled={!renewDate || !!processing}>
-                {processing ? 'Renewing…' : 'Confirm Renewal'}
+              <button className="btn btn-secondary" onClick={() => setRenewModal(null)}>Cancel</button>
+              <button 
+                className="btn btn-success" 
+                onClick={handleRenew} 
+                disabled={processing !== null}
+              >
+                {processing ? 'Processing...' : 'Confirm Renewal'}
               </button>
             </div>
           </div>
@@ -240,21 +303,34 @@ export default function RenewalsPage() {
         <div className="modal-overlay" onClick={() => setTermModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">❌ Terminate Contract</h3>
+              <h3 className="modal-title text-rose-400">❌ Terminate Vendor Contract</h3>
             </div>
-            <div className="modal-body">
-              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '0.75rem', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
-                ⚠️ Terminated contracts will NOT appear in active renewal reminders.
-              </div>
+            <div className="modal-body space-y-4">
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Terminating <strong>{termModal.title}</strong>. This contract will transition to 
+                <span className="font-bold text-rose-400"> TERMINATED</span> and be permanently removed from all renewal notification queues.
+              </p>
+
               <div className="form-group">
-                <label className="form-label">Reason</label>
-                <textarea className="form-textarea" value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Reason for termination…" />
+                <label className="form-label">Termination Rationale / Exit Note</label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  placeholder="e.g. Replaced by alternate vendor or requirement decommissioned."
+                  value={remarks}
+                  onChange={e => setRemarks(e.target.value)}
+                />
               </div>
             </div>
+
             <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setTermModal(null)}>Cancel</button>
-              <button className="btn btn-danger" onClick={handleTerminate} disabled={!!processing}>
-                {processing ? 'Terminating…' : 'Confirm Termination'}
+              <button className="btn btn-secondary" onClick={() => setTermModal(null)}>Cancel</button>
+              <button 
+                className="btn btn-danger" 
+                onClick={handleTerminate} 
+                disabled={processing !== null}
+              >
+                {processing ? 'Terminating...' : 'Confirm Termination'}
               </button>
             </div>
           </div>
